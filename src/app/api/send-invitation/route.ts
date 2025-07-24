@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-// Asumiendo que la API key de Resend está en las variables de entorno
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(request: Request) {
   try {
     const { email, token, organizationName } = await request.json()
@@ -11,6 +8,14 @@ export async function POST(request: Request) {
     if (!email || !token || !organizationName) {
       return NextResponse.json({ error: 'Faltan parámetros requeridos: email, token, organizationName' }, { status: 400 })
     }
+
+    // Verificar que la API key esté disponible
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: 'RESEND_API_KEY no está configurada' }, { status: 500 })
+    }
+
+    // Inicializar Resend dentro de la función
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     // Construir la URL de invitación
     const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitation?token=${token}`
