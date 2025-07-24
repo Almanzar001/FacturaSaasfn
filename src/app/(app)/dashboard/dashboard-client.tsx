@@ -135,17 +135,17 @@ export default function DashboardClient() {
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Bienvenido de vuelta, {user?.user_metadata.full_name || user?.email}
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Ingresos Totales"
             value={formatCurrency(stats.totalRevenue)}
@@ -181,17 +181,17 @@ export default function DashboardClient() {
         </div>
 
         {/* Additional Stats */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary-600" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600" />
                 Facturas
               </CardTitle>
-              <CardDescription>Estado de facturación actual</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Estado de facturación actual</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalInvoices}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalInvoices}</div>
               <p className="text-xs text-muted-foreground">
                 +12 nuevas este mes
               </p>
@@ -199,15 +199,15 @@ export default function DashboardClient() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-warning-600" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-warning-600" />
                 Cotizaciones
               </CardTitle>
-              <CardDescription>Propuestas comerciales pendientes</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Propuestas comerciales pendientes</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalQuotes}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalQuotes}</div>
               <p className="text-xs text-muted-foreground">
                 85% tasa de conversión
               </p>
@@ -217,36 +217,42 @@ export default function DashboardClient() {
 
         {/* Recent Activity */}
         <Card>
-          <CardHeader>
-            <CardTitle>Actividad Reciente</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Actividad Reciente</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Últimas acciones realizadas en el sistema
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {activities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50 hover:bg-card transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className={`h-2 w-2 rounded-full ${
-                    activity.status === 'success' ? 'bg-success-600' :
-                    activity.status === 'warning' ? 'bg-warning-600' :
-                    'bg-blue-600'
-                  }`} />
-                  <div>
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">{activity.description}</p>
+          <CardContent className="space-y-3">
+            {activities.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">No hay actividad reciente</p>
+              </div>
+            ) : (
+              activities.map((activity) => (
+                <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg border bg-card/50 hover:bg-card transition-colors space-y-2 sm:space-y-0">
+                  <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                    <div className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                      activity.status === 'success' ? 'bg-success-600' :
+                      activity.status === 'warning' ? 'bg-warning-600' :
+                      'bg-blue-600'
+                    }`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{activity.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-2 flex-shrink-0">
+                    {activity.amount && (
+                      <Badge variant={activity.status === 'success' ? 'success' : 'secondary'} className="text-xs">
+                        {formatCurrency(activity.amount)}
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.timestamp}</span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {activity.amount && (
-                    <Badge variant={activity.status === 'success' ? 'success' : 'secondary'}>
-                      {formatCurrency(activity.amount)}
-                    </Badge>
-                  )}
-                  <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

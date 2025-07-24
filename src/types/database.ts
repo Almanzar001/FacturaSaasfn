@@ -143,8 +143,13 @@ export interface Database {
           subtotal: number
           tax: number
           total: number
+          balance: number | null
           status: string
           due_date: string
+          issue_date: string | null
+          notes: string | null
+          tax_amount: number | null
+          document_type_id: string | null
           created_at: string
           updated_at: string
         }
@@ -156,8 +161,13 @@ export interface Database {
           subtotal: number
           tax: number
           total: number
+          balance?: number | null
           status?: string
           due_date: string
+          issue_date?: string | null
+          notes?: string | null
+          tax_amount?: number | null
+          document_type_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -169,8 +179,13 @@ export interface Database {
           subtotal?: number
           tax?: number
           total?: number
+          balance?: number | null
           status?: string
           due_date?: string
+          issue_date?: string | null
+          notes?: string | null
+          tax_amount?: number | null
+          document_type_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -262,6 +277,8 @@ export interface Database {
           quantity: number
           unit_price: number
           total: number
+          total_price: number | null
+          description: string | null
         }
         Insert: {
           id?: string
@@ -270,6 +287,8 @@ export interface Database {
           quantity: number
           unit_price: number
           total: number
+          total_price?: number | null
+          description?: string | null
         }
         Update: {
           id?: string
@@ -278,6 +297,8 @@ export interface Database {
           quantity?: number
           unit_price?: number
           total?: number
+          total_price?: number | null
+          description?: string | null
         }
       }
       quote_items: {
@@ -336,6 +357,38 @@ export interface Database {
           notes?: string | null
           created_at?: string
           organization_id?: string
+        }
+        document_types: {
+          Row: {
+            id: string
+            organization_id: string
+            name: string
+            prefix: string
+            sequence_next_value: number
+            is_active: boolean
+            created_at: string
+            updated_at: string
+          }
+          Insert: {
+            id?: string
+            organization_id: string
+            name: string
+            prefix: string
+            sequence_next_value?: number
+            is_active?: boolean
+            created_at?: string
+            updated_at?: string
+          }
+          Update: {
+            id?: string
+            organization_id?: string
+            name?: string
+            prefix?: string
+            sequence_next_value?: number
+            is_active?: boolean
+            created_at?: string
+            updated_at?: string
+          }
         }
       }
     }

@@ -7,6 +7,10 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'FacturaSaaS - Sistema de Facturación',
   description: 'Sistema completo de facturación para empresas',
+  icons: {
+    icon: '/icon',
+    apple: '/apple-icon',
+  },
 }
 
 export default function RootLayout({

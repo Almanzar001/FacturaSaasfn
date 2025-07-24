@@ -566,33 +566,157 @@ export default function InvoicesComplete() {
       return
     }
 
+    // Validate amount is positive
+    if (amount <= 0) {
+      alert('El monto debe ser mayor a cero')
+      return
+    }
+
+    // Log payment data for debugging
+    console.log('Processing payment:', {
+      selectedInvoice: selectedInvoice.id,
+      organizationId,
+      amount,
+      payment_date,
+      editingPayment: editingPayment?.id
+    })
+
+    // Show loading state
+    const submitButton = e.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement
+    const originalText = submitButton?.textContent || ''
+    if (submitButton) {
+      submitButton.disabled = true
+      submitButton.textContent = editingPayment ? 'Actualizando...' : 'Guardando...'
+    }
+
     try {
+      let paymentResult: Payment | null = null
+
       if (editingPayment) {
         // Update existing payment
-        const { error } = await supabase
+        console.log('Updating payment:', editingPayment.id)
+        const { data, error } = await supabase
           .from('payments')
           .update({ amount, payment_date })
           .eq('id', editingPayment.id)
-        if (error) throw error
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Error updating payment:', error)
+          throw new Error(`Error al actualizar el pago: ${error.message}`)
+        }
+        
+        paymentResult = data
+        console.log('Payment updated successfully:', paymentResult)
         setEditingPayment(null)
       } else {
         // Add new payment
-        const { error } = await supabase.from('payments').insert({
+        const paymentData = {
           invoice_id: selectedInvoice.id,
           client_id: selectedInvoice.client_id,
           amount,
           payment_date,
           organization_id: organizationId
-        })
-        if (error) throw error
+        }
+
+        console.log('Inserting payment:', paymentData)
+        
+        const { data, error } = await supabase
+          .from('payments')
+          .insert(paymentData)
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Error inserting payment:', error)
+          throw new Error(`Error al guardar el pago: ${error.message}`)
+        }
+        
+        paymentResult = data
+        console.log('Payment inserted successfully:', paymentResult)
+        
+        // Immediately update the payments list with the new payment
+        if (paymentResult) {
+          setPayments(prev => [paymentResult as Payment, ...prev])
+        }
       }
       
-      e.currentTarget.reset()
-      // Refetch payments and invoices
-      openPaymentModal(selectedInvoice)
-      fetchInvoices(organizationId)
+      // Reset form safely
+      if (e.currentTarget && typeof e.currentTarget.reset === 'function') {
+        e.currentTarget.reset()
+      }
+      
+      // Wait a moment for the database trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Refetch invoices to get updated balance (the trigger should have updated it)
+      console.log('Refetching invoices after payment operation...')
+      await fetchInvoices(organizationId)
+      
+      // If we're not editing, refetch payments to ensure we have the latest data
+      if (!editingPayment && selectedInvoice) {
+        console.log('Refetching payments for invoice:', selectedInvoice.id)
+        const { data: updatedPayments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('invoice_id', selectedInvoice.id)
+          .order('payment_date', { ascending: false })
+        
+        if (paymentsError) {
+          console.error('Error fetching updated payments:', paymentsError)
+        } else {
+          setPayments(updatedPayments || [])
+          console.log('Updated payments:', updatedPayments)
+        }
+      }
+      
+      // Show success message
+      const successMessage = editingPayment ? 'Pago actualizado exitosamente' : 'Pago registrado exitosamente'
+      
+      // Create a temporary success notification
+      const notification = document.createElement('div')
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
+      notification.textContent = successMessage
+      document.body.appendChild(notification)
+      
+      // Remove notification after 3 seconds
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      }, 3000)
+      
     } catch (error) {
-      alert('Error al guardar el pago')
+      console.error('Error al guardar el pago:', error)
+      
+      // Show more specific error message
+      let errorMessage = 'Error al guardar el pago. Por favor intente de nuevo.'
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = `Error: ${error.message}`
+      } else if (error && typeof error === 'object' && 'details' in error) {
+        errorMessage = `Error: ${(error as any).details}`
+      }
+      
+      // Create error notification instead of alert
+      const errorNotification = document.createElement('div')
+      errorNotification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md'
+      errorNotification.textContent = errorMessage
+      document.body.appendChild(errorNotification)
+      
+      // Remove error notification after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(errorNotification)) {
+          document.body.removeChild(errorNotification)
+        }
+      }, 5000)
+    } finally {
+      // Restore button state safely
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = originalText
+      }
     }
   }
 
@@ -606,12 +730,30 @@ export default function InvoicesComplete() {
         
         if (error) throw error
         
-        if(selectedInvoice) {
-          openPaymentModal(selectedInvoice)
-          fetchInvoices(organizationId!)
+        // Immediately remove the payment from the local state
+        setPayments(prev => prev.filter(payment => payment.id !== paymentId))
+        
+        // Refetch invoices to get updated balance
+        if (organizationId) {
+          await fetchInvoices(organizationId)
         }
+        
+        // Show success message
+        const notification = document.createElement('div')
+        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
+        notification.textContent = 'Pago eliminado exitosamente'
+        document.body.appendChild(notification)
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification)
+          }
+        }, 3000)
+        
       } catch (error) {
-        alert('Error al eliminar el pago')
+        console.error('Error al eliminar el pago:', error)
+        alert('Error al eliminar el pago. Por favor intente de nuevo.')
       }
     }
   }
@@ -756,45 +898,45 @@ export default function InvoicesComplete() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Facturas</h1>
-          <p className="text-gray-600">Gestiona todas tus facturas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Facturas</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Gestiona todas tus facturas</p>
         </div>
-        <button 
+        <button
           onClick={() => openModal()}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Nueva Factura
+          <span>Nueva Factura</span>
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Total Facturas</h3>
-          <p className="text-2xl font-bold text-gray-900">{invoices.length}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Facturas</h3>
+          <p className="text-lg sm:text-2xl font-bold text-gray-900">{invoices.length}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Total Ventas</h3>
-          <p className="text-2xl font-bold text-gray-900">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Ventas</h3>
+          <p className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
             {formatCurrency(invoices.reduce((sum, inv) => sum + inv.total, 0))}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Total Recaudado</h3>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Recaudado</h3>
+          <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">
             {formatCurrency(invoices.reduce((sum, inv) => sum + (inv.total - (inv.balance ?? inv.total)), 0))}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Balance Pendiente</h3>
-          <p className="text-2xl font-bold text-yellow-600">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Balance Pendiente</h3>
+          <p className="text-lg sm:text-2xl font-bold text-yellow-600 truncate">
             {formatCurrency(invoices.reduce((sum, inv) => sum + (inv.balance ?? inv.total), 0))}
           </p>
         </div>
@@ -802,127 +944,196 @@ export default function InvoicesComplete() {
 
       {/* Invoices Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Facturas</h2>
         </div>
         
         {invoices.length === 0 ? (
-          <div className="p-8 text-center">
+          <div className="p-6 sm:p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <p className="text-gray-500 mb-4">No hay facturas registradas</p>
-            <button 
+            <button
               onClick={() => openModal()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
             >
               Crear primera factura
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Número
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Pagado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Resta
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {invoice.invoice_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {invoice.client_name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(invoice.issue_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency(invoice.total)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                      {formatCurrency(invoice.total - (invoice.balance ?? invoice.total))}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                      {formatCurrency(invoice.balance ?? invoice.total)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(invoice.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => openModal(invoice)}
-                          className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-full"
-                          title="Editar Factura"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteInvoice(invoice.id)}
-                          className="p-1 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-full"
-                          title="Eliminar Factura"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => openPaymentModal(invoice)}
-                          className="p-1 text-green-600 hover:text-green-900 hover:bg-green-100 rounded-full"
-                          title="Gestionar Pagos"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPdf(invoice)}
-                          className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-full"
-                          title="Descargar PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pagado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resta</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {invoices.map((invoice) => (
+                    <tr key={invoice.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {invoice.invoice_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {invoice.client_name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(invoice.issue_date)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatCurrency(invoice.total)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                        {formatCurrency(invoice.total - (invoice.balance ?? invoice.total))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
+                        {formatCurrency(invoice.balance ?? invoice.total)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(invoice.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => openModal(invoice)}
+                            className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-full"
+                            title="Editar Factura"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteInvoice(invoice.id)}
+                            className="p-1 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-full"
+                            title="Eliminar Factura"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openPaymentModal(invoice)}
+                            disabled={(invoice.balance ?? invoice.total) <= 0}
+                            className={`p-1 rounded-full ${
+                              (invoice.balance ?? invoice.total) <= 0
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-green-600 hover:text-green-900 hover:bg-green-100'
+                            }`}
+                            title={(invoice.balance ?? invoice.total) <= 0 ? 'Factura completamente pagada' : 'Gestionar Pagos'}
+                          >
+                            <DollarSign className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPdf(invoice)}
+                            className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-full"
+                            title="Descargar PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden divide-y divide-gray-200">
+              {invoices.map((invoice) => (
+                <div key={invoice.id} className="p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 truncate">
+                        {invoice.invoice_number}
+                      </h3>
+                      <p className="text-xs text-gray-600 truncate">{invoice.client_name}</p>
+                      <p className="text-xs text-gray-500">{formatDate(invoice.issue_date)}</p>
+                    </div>
+                    <div className="flex-shrink-0 ml-2">
+                      {getStatusBadge(invoice.status)}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <span className="text-gray-500">Total:</span>
+                      <span className="font-medium text-gray-900 ml-1">
+                        {formatCurrency(invoice.total)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pagado:</span>
+                      <span className="font-medium text-green-600 ml-1">
+                        {formatCurrency(invoice.total - (invoice.balance ?? invoice.total))}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Resta:</span>
+                      <span className="font-medium text-red-600 ml-1">
+                        {formatCurrency(invoice.balance ?? invoice.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-1">
+                    <button
+                      onClick={() => openModal(invoice)}
+                      className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-full"
+                      title="Editar Factura"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteInvoice(invoice.id)}
+                      className="p-1 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-full"
+                      title="Eliminar Factura"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => openPaymentModal(invoice)}
+                      disabled={(invoice.balance ?? invoice.total) <= 0}
+                      className={`p-1 rounded-full ${
+                        (invoice.balance ?? invoice.total) <= 0
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-green-600 hover:text-green-900 hover:bg-green-100'
+                      }`}
+                      title={(invoice.balance ?? invoice.total) <= 0 ? 'Factura completamente pagada' : 'Gestionar Pagos'}
+                    >
+                      <DollarSign className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPdf(invoice)}
+                      className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-full"
+                      title="Descargar PDF"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-6">
                 {editingInvoice ? 'Editar Factura' : 'Nueva Factura'}
               </h3>
