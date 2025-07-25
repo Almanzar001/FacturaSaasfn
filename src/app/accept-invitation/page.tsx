@@ -113,17 +113,42 @@ function AcceptInvitationComponent() {
   }
 
   if (error) {
+    const isWrongEmailError = error.includes('correo diferente al de tu sesión actual')
+    
     return (
       <div className="flex items-center justify-center h-screen">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Error</CardTitle>
+            <CardTitle>{isWrongEmailError ? 'Correo Incorrecto' : 'Error'}</CardTitle>
+            {isWrongEmailError && (
+              <CardDescription>
+                Esta invitación es para el correo: <strong>{invitationEmail}</strong>
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
-            <p className="text-red-500">{error}</p>
-            <Button onClick={() => router.push('/login')} className="w-full mt-4">
-              Ir a Iniciar Sesión
-            </Button>
+            <p className="text-red-500 mb-4">{error}</p>
+            <div className="space-y-2">
+              {isWrongEmailError && (
+                <Button
+                  onClick={async () => {
+                    await supabase.auth.signOut()
+                    window.location.reload()
+                  }}
+                  className="w-full"
+                  variant="default"
+                >
+                  Cerrar Sesión y Continuar
+                </Button>
+              )}
+              <Button
+                onClick={() => router.push('/login')}
+                className="w-full"
+                variant={isWrongEmailError ? "outline" : "default"}
+              >
+                Ir a Iniciar Sesión
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
