@@ -57,6 +57,7 @@ CREATE POLICY "Admins and owners can update invitations" ON public.invitations
 DROP FUNCTION IF EXISTS public.invite_user_to_organization(uuid, text, text);
 DROP FUNCTION IF EXISTS public.accept_invitation(text, uuid);
 DROP FUNCTION IF EXISTS public.get_invitation_details(text);
+DROP FUNCTION IF EXISTS public.get_team_data(uuid);
 
 -- Function to invite user to organization
 CREATE OR REPLACE FUNCTION public.invite_user_to_organization(
