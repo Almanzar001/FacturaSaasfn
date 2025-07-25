@@ -1,6 +1,9 @@
 -- Add dashboard stats function for new organizations
 -- This function provides basic stats for the dashboard
 
+-- Drop existing function if it exists
+DROP FUNCTION IF EXISTS public.get_dashboard_stats(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats(org_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
