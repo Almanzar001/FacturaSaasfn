@@ -57,24 +57,68 @@ export default function DashboardClient() {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('organization_id')
+        .select('organization_id, role, onboarding_completed')
         .eq('id', user.id)
         .single();
+
+      console.log('Profile data:', profile);
 
       if (profile?.organization_id) {
         const { data, error } = await supabase.rpc('get_dashboard_stats', {
           org_id: profile.organization_id,
         });
 
-        if (error) throw error;
+        console.log('Dashboard stats:', { data, error });
+
+        if (error) {
+          console.error('Error fetching dashboard stats:', error);
+          // Set default values for new organizations
+          setStats({
+            totalRevenue: 0,
+            totalExpenses: 0,
+            totalProfit: 0,
+            totalClients: 0,
+            totalInvoices: 0,
+            totalQuotes: 0,
+          });
+          
+          // Set welcome activities for new organizations
+          setActivities([
+            {
+              id: '1',
+              type: 'client',
+              title: 'Bienvenido a FacturaSaaS',
+              description: 'Comienza agregando tu primer cliente',
+              timestamp: new Date().toLocaleDateString('es-DO', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }),
+              status: 'pending'
+            },
+            {
+              id: '2',
+              type: 'invoice',
+              title: 'Configura tu organización',
+              description: 'Completa la información de tu empresa en configuraciones',
+              timestamp: new Date().toLocaleDateString('es-DO', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }),
+              status: 'pending'
+            }
+          ]);
+          return;
+        }
 
         setStats({
-          totalRevenue: data.totalRevenue,
-          totalExpenses: data.totalExpenses,
-          totalProfit: data.totalProfit,
-          totalClients: data.totalClients,
-          totalInvoices: data.totalInvoices,
-          totalQuotes: data.totalQuotes,
+          totalRevenue: data.totalRevenue || 0,
+          totalExpenses: data.totalExpenses || 0,
+          totalProfit: data.totalProfit || 0,
+          totalClients: data.totalClients || 0,
+          totalInvoices: data.totalInvoices || 0,
+          totalQuotes: data.totalQuotes || 0,
         });
         
         // Asegurarse de que `data.activities` sea un array antes de mapear
@@ -88,8 +132,26 @@ export default function DashboardClient() {
           }),
         }));
         setActivities(formattedActivities);
+      } else {
+        console.log('No organization found for user');
+        // Handle case where user has no organization (shouldn't happen with new trigger)
+        setActivities([
+          {
+            id: '1',
+            type: 'client',
+            title: 'Configuración pendiente',
+            description: 'Tu organización se está configurando...',
+            timestamp: new Date().toLocaleDateString('es-DO', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }),
+            status: 'warning'
+          }
+        ]);
       }
     } catch (error) {
+      console.error('Error in fetchDashboardData:', error);
     }
   };
 
