@@ -447,7 +447,7 @@ export default function InvoicesComplete() {
       try {
         const { data: items, error } = await supabase
           .from('invoice_items')
-          .select('*')
+          .select('*, products(name)')
           .eq('invoice_id', invoice.id)
 
         if (error) throw error
@@ -455,7 +455,7 @@ export default function InvoicesComplete() {
         const formattedItems = (items || []).map((item: any) => ({
           id: item.id,
           product_id: item.product_id,
-          product_name: item.description || 'Producto eliminado',
+          product_name: item.description || item.products?.name || 'Producto eliminado',
           quantity: item.quantity,
           unit_price: item.unit_price,
           total: item.quantity * item.unit_price // Calculate total from quantity and unit_price
@@ -804,13 +804,13 @@ export default function InvoicesComplete() {
     try {
       const { data: items, error } = await supabase
         .from('invoice_items')
-        .select('*')
+        .select('*, products(name)')
         .eq('invoice_id', invoice.id);
 
       if (error) throw error;
 
       const formattedItems = (items || []).map((item: any) => ({
-        product_name: item.description || 'Producto no encontrado',
+        product_name: item.description || item.products?.name || 'Producto no encontrado',
         quantity: item.quantity,
         unit_price: item.unit_price,
         total: item.quantity * item.unit_price,
