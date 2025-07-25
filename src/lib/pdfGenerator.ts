@@ -103,7 +103,27 @@ export const generateInvoicePdf = async (
       const reader = new FileReader();
       await new Promise<void>((resolve, reject) => {
         reader.onload = () => {
-          doc.addImage(reader.result as string, 'PNG', 15, y, 25, 25);
+          // Create a circular clipping path for the logo
+          const logoSize = 25;
+          const logoX = 15;
+          const logoY = y;
+          const centerX = logoX + logoSize / 2;
+          const centerY = logoY + logoSize / 2;
+          const radius = logoSize / 2;
+          
+          // Save the current graphics state
+          doc.saveGraphicsState();
+          
+          // Create circular clipping path
+          doc.circle(centerX, centerY, radius);
+          doc.clip();
+          
+          // Add the image within the circular clip
+          doc.addImage(reader.result as string, 'PNG', logoX, logoY, logoSize, logoSize);
+          
+          // Restore the graphics state
+          doc.restoreGraphicsState();
+          
           resolve();
         };
         reader.onerror = reject;
@@ -268,7 +288,27 @@ export const generateQuotePdf = async (
       const reader = new FileReader();
       await new Promise<void>((resolve, reject) => {
         reader.onload = () => {
-          doc.addImage(reader.result as string, 'PNG', 15, y, 25, 25);
+          // Create a circular clipping path for the logo
+          const logoSize = 25;
+          const logoX = 15;
+          const logoY = y;
+          const centerX = logoX + logoSize / 2;
+          const centerY = logoY + logoSize / 2;
+          const radius = logoSize / 2;
+          
+          // Save the current graphics state
+          doc.saveGraphicsState();
+          
+          // Create circular clipping path
+          doc.circle(centerX, centerY, radius);
+          doc.clip();
+          
+          // Add the image within the circular clip
+          doc.addImage(reader.result as string, 'PNG', logoX, logoY, logoSize, logoSize);
+          
+          // Restore the graphics state
+          doc.restoreGraphicsState();
+          
           resolve();
         };
         reader.onerror = reject;
