@@ -110,9 +110,15 @@ export const generateInvoicePdf = async (
   doc.setFontSize(18);
   doc.text(organization.name, 50, y + 7);
   doc.setFontSize(10);
-  doc.text(organization.settings?.address || '', 50, y + 13);
-  doc.text(`RNC: ${organization.settings?.rnc || ''}`, 50, y + 18);
-  doc.text(`Tel: ${organization.settings?.phone || ''}`, 50, y + 23);
+  if (organization.settings?.address) {
+    doc.text(organization.settings.address, 50, y + 13);
+  }
+  if (organization.settings?.rnc) {
+    doc.text(`RNC: ${organization.settings.rnc}`, 50, y + 18);
+  }
+  if (organization.settings?.phone) {
+    doc.text(`Tel: ${organization.settings.phone}`, 50, y + 23);
+  }
   
   y += 40;
 
@@ -130,9 +136,13 @@ export const generateInvoicePdf = async (
   doc.text('Cliente:', 110, y);
   doc.setFont('helvetica', 'normal');
   doc.text(client.name, 110, y + 7);
-  doc.text(client.address || '', 110, y + 14);
+  if (client.address) {
+    doc.text(client.address, 110, y + 14);
+  }
   doc.text(client.email, 110, y + 21);
-  doc.text(`RNC/Cédula: ${client.rnc || ''}`, 110, y + 28);
+  if (client.rnc) {
+    doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
+  }
 
   y += 35;
 
@@ -166,26 +176,36 @@ export const generateInvoicePdf = async (
   const totalsX = 140;
   doc.setFontSize(10);
   doc.text('Subtotal:', totalsX, y);
-  doc.text(formatCurrency(invoice.subtotal), 195, y, { align: 'right' });
+  const subtotalText = formatCurrency(invoice.subtotal);
+  const subtotalWidth = doc.getTextWidth(subtotalText);
+  doc.text(subtotalText, 195 - subtotalWidth, y);
   
   y += 7;
   doc.text(`ITBIS (${((invoice.tax / invoice.subtotal) * 100 || 0).toFixed(0)}%):`, totalsX, y);
-  doc.text(formatCurrency(invoice.tax), 195, y, { align: 'right' });
+  const taxText = formatCurrency(invoice.tax);
+  const taxWidth = doc.getTextWidth(taxText);
+  doc.text(taxText, 195 - taxWidth, y);
   
   y += 7;
   doc.setFont('helvetica', 'bold');
   doc.text('Total:', totalsX, y);
-  doc.text(formatCurrency(invoice.total), 195, y, { align: 'right' });
+  const totalText = formatCurrency(invoice.total);
+  const totalWidth = doc.getTextWidth(totalText);
+  doc.text(totalText, 195 - totalWidth, y);
 
   y += 7;
   doc.setFont('helvetica', 'normal');
   doc.text('Pagado:', totalsX, y);
-  doc.text(formatCurrency(invoice.total - (invoice.balance ?? invoice.total)), 195, y, { align: 'right' });
+  const paidText = formatCurrency(invoice.total - (invoice.balance ?? invoice.total));
+  const paidWidth = doc.getTextWidth(paidText);
+  doc.text(paidText, 195 - paidWidth, y);
 
   y += 7;
   doc.setFont('helvetica', 'bold');
   doc.text('Balance Pendiente:', totalsX, y);
-  doc.text(formatCurrency(invoice.balance ?? 0), 195, y, { align: 'right' });
+  const balanceText = formatCurrency(invoice.balance ?? 0);
+  const balanceWidth = doc.getTextWidth(balanceText);
+  doc.text(balanceText, 195 - balanceWidth, y);
 
   // --- Notes ---
   if (invoice.notes) {
@@ -205,7 +225,9 @@ export const generateInvoicePdf = async (
     const footerY = pageHeight - 15;
     doc.setFontSize(8);
     doc.text(organization.settings?.pdf_footer_message || 'Gracias por su negocio.', 15, footerY);
-    doc.text(`Página ${i} de ${pageCount}`, 195, footerY, { align: 'right' });
+    const pageText = `Página ${i} de ${pageCount}`;
+    const pageWidth = doc.getTextWidth(pageText);
+    doc.text(pageText, 195 - pageWidth, footerY);
   }
 
   doc.save(`Factura-${invoice.invoice_number}.pdf`);
@@ -242,9 +264,15 @@ export const generateQuotePdf = async (
   doc.setFontSize(18);
   doc.text(organization.name, 50, y + 7);
   doc.setFontSize(10);
-  doc.text(organization.settings?.address || '', 50, y + 13);
-  doc.text(`RNC: ${organization.settings?.rnc || ''}`, 50, y + 18);
-  doc.text(`Tel: ${organization.settings?.phone || ''}`, 50, y + 23);
+  if (organization.settings?.address) {
+    doc.text(organization.settings.address, 50, y + 13);
+  }
+  if (organization.settings?.rnc) {
+    doc.text(`RNC: ${organization.settings.rnc}`, 50, y + 18);
+  }
+  if (organization.settings?.phone) {
+    doc.text(`Tel: ${organization.settings.phone}`, 50, y + 23);
+  }
   
   y += 40;
 
@@ -262,9 +290,13 @@ export const generateQuotePdf = async (
   doc.text('Cliente:', 110, y);
   doc.setFont('helvetica', 'normal');
   doc.text(client.name, 110, y + 7);
-  doc.text(client.address || '', 110, y + 14);
+  if (client.address) {
+    doc.text(client.address, 110, y + 14);
+  }
   doc.text(client.email, 110, y + 21);
-  doc.text(`RNC/Cédula: ${client.rnc || ''}`, 110, y + 28);
+  if (client.rnc) {
+    doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
+  }
 
   y += 35;
 
@@ -298,16 +330,22 @@ export const generateQuotePdf = async (
   const totalsX = 140;
   doc.setFontSize(10);
   doc.text('Subtotal:', totalsX, y);
-  doc.text(formatCurrency(quote.subtotal), 195, y, { align: 'right' });
+  const quoteSubtotalText = formatCurrency(quote.subtotal);
+  const quoteSubtotalWidth = doc.getTextWidth(quoteSubtotalText);
+  doc.text(quoteSubtotalText, 195 - quoteSubtotalWidth, y);
   
   y += 7;
   doc.text(`ITBIS (${((quote.tax_amount / quote.subtotal) * 100 || 0).toFixed(0)}%):`, totalsX, y);
-  doc.text(formatCurrency(quote.tax_amount), 195, y, { align: 'right' });
+  const quoteTaxText = formatCurrency(quote.tax_amount);
+  const quoteTaxWidth = doc.getTextWidth(quoteTaxText);
+  doc.text(quoteTaxText, 195 - quoteTaxWidth, y);
   
   y += 7;
   doc.setFont('helvetica', 'bold');
   doc.text('Total:', totalsX, y);
-  doc.text(formatCurrency(quote.total), 195, y, { align: 'right' });
+  const quoteTotalText = formatCurrency(quote.total);
+  const quoteTotalWidth = doc.getTextWidth(quoteTotalText);
+  doc.text(quoteTotalText, 195 - quoteTotalWidth, y);
 
   // --- Notes ---
   if (quote.notes) {
@@ -327,7 +365,9 @@ export const generateQuotePdf = async (
     const footerY = pageHeight - 15;
     doc.setFontSize(8);
     doc.text(organization.settings?.pdf_footer_message || 'Gracias por su interés.', 15, footerY);
-    doc.text(`Página ${i} de ${pageCountQuote}`, 195, footerY, { align: 'right' });
+    const quotePageText = `Página ${i} de ${pageCountQuote}`;
+    const quotePageWidth = doc.getTextWidth(quotePageText);
+    doc.text(quotePageText, 195 - quotePageWidth, footerY);
   }
 
   doc.save(`Cotizacion-${quote.quote_number}.pdf`);
