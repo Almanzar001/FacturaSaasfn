@@ -24,8 +24,19 @@ export async function POST(request: Request) {
     // Inicializar Resend dentro de la función
     const resend = new Resend(process.env.RESEND_API_KEY)
 
+    // Verificar que la URL de la app esté configurada
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000'
+    
+    if (!process.env.NEXT_PUBLIC_APP_URL && !process.env.VERCEL_URL) {
+      console.warn('NEXT_PUBLIC_APP_URL no está configurada, usando localhost como fallback')
+    }
+
     // Construir la URL de invitación
-    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitation?token=${token}`
+    const invitationUrl = `${appUrl}/accept-invitation?token=${token}`
+    
+    console.log('URL de invitación generada:', invitationUrl)
 
     const { data, error } = await resend.emails.send({
       from: 'FacturaSaaS <noreply@fu-app.com>',
