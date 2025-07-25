@@ -173,7 +173,7 @@ export function MobileSidebar({ userRole }: MobileSidebarProps) {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r shadow-xl">
+          <div className="fixed inset-0 left-0 z-50 w-72 bg-white border-r shadow-xl flex flex-col h-screen">
             <div className="flex h-16 shrink-0 items-center justify-between border-b px-6 bg-white">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -191,58 +191,56 @@ export function MobileSidebar({ userRole }: MobileSidebarProps) {
             </div>
             
             {/* Mobile Navigation Content */}
-            <div className="flex h-full min-h-0 flex-col bg-white">
-              <nav className="flex-1 space-y-1 p-4 bg-white">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
-                        isActive
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-gray-700 hover:text-gray-900"
-                      )}
-                    >
-                      <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-gray-500")} />
-                      <span>{item.name}</span>
-                    </Link>
-                  )
-                })}
-              </nav>
-
-              {/* Mobile Footer */}
-              <div className="border-t p-4 bg-white">
-                <div className="space-y-1">
-                  {(userRole === 'propietario' || userRole === 'administrador') && (
-                    <Link
-                      href="/configuraciones"
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-gray-900",
-                        pathname.startsWith('/configuraciones') && "bg-gray-100 text-gray-900"
-                      )}
-                    >
-                      <Settings className="h-4 w-4 shrink-0 text-gray-500" />
-                      <span>Configuración</span>
-                    </Link>
-                  )}
-                  <button
-                    onClick={async () => {
-                      const { createClient } = await import('@/lib/supabase/client');
-                      const supabase = createClient();
-                      await supabase.auth.signOut();
-                      window.location.href = '/login';
-                    }}
-                    className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-gray-900"
+            <nav className="flex-1 space-y-1 p-4 bg-white overflow-y-auto">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
+                      isActive
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "text-gray-700 hover:text-gray-900"
+                    )}
                   >
-                    <LogOut className="h-4 w-4 shrink-0 text-gray-500" />
-                    <span>Cerrar Sesión</span>
-                  </button>
-                </div>
+                    <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-gray-500")} />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Mobile Footer - Fixed at bottom */}
+            <div className="border-t p-4 bg-white mt-auto">
+              <div className="space-y-1">
+                {(userRole === 'propietario' || userRole === 'administrador') && (
+                  <Link
+                    href="/configuraciones"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-gray-900",
+                      pathname.startsWith('/configuraciones') && "bg-gray-100 text-gray-900"
+                    )}
+                  >
+                    <Settings className="h-4 w-4 shrink-0 text-gray-500" />
+                    <span>Configuración</span>
+                  </Link>
+                )}
+                <button
+                  onClick={async () => {
+                    const { createClient } = await import('@/lib/supabase/client');
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    window.location.href = '/login';
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <LogOut className="h-4 w-4 shrink-0 text-gray-500" />
+                  <span>Cerrar Sesión</span>
+                </button>
               </div>
             </div>
           </div>

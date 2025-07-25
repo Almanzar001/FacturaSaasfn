@@ -603,34 +603,39 @@ export default function QuotesClient() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cotizaciones</h1>
-          <p className="text-gray-600">Gestiona todas tus cotizaciones</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cotizaciones</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Gestiona todas tus cotizaciones</p>
         </div>
-        <Button onClick={() => openModal()} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nueva Cotización
-        </Button>
+        <button
+          onClick={() => openModal()}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Nueva Cotización</span>
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Total Cotizaciones</h3>
-          <p className="text-2xl font-bold text-gray-900">{quotes.length}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Cotizaciones</h3>
+          <p className="text-lg sm:text-2xl font-bold text-gray-900">{quotes.length}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Total Cotizado</h3>
-          <p className="text-2xl font-bold text-gray-900">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Cotizado</h3>
+          <p className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
             {formatCurrency(quotes.reduce((sum, q) => sum + q.total, 0))}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-500">Aceptadas</h3>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border col-span-2 lg:col-span-1">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Aceptadas</h3>
+          <p className="text-lg sm:text-2xl font-bold text-green-600">
             {quotes.filter(q => q.status === 'accepted').length}
           </p>
         </div>
@@ -638,67 +643,166 @@ export default function QuotesClient() {
 
       {/* Quotes Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Cotizaciones</h2>
         </div>
         
         {quotes.length === 0 ? (
-          <div className="p-8 text-center">
+          <div className="p-6 sm:p-8 text-center">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
             <p className="text-gray-500 mb-4">No hay cotizaciones registradas</p>
-            <Button onClick={() => openModal()}>
+            <button
+              onClick={() => openModal()}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+            >
               Crear primera cotización
-            </Button>
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {quotes.map((quote) => (
-                  <tr key={quote.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{quote.quote_number}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{quote.client_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(quote.issue_date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(quote.total)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(quote.status)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Button variant="ghost" size="icon" className="p-1 h-8 w-8 text-gray-500 hover:text-gray-900" onClick={() => openModal(quote)} title="Editar Cotización">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="p-1 h-8 w-8 text-red-500 hover:text-red-700" onClick={() => deleteQuote(quote.id)} title="Eliminar Cotización">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="p-1 h-8 w-8 text-blue-500 hover:text-blue-700" onClick={() => handleDownloadPdf(quote)} title="Descargar PDF">
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="p-1 h-8 w-8 text-green-500 hover:text-green-700" onClick={() => handleConvertToInvoice(quote)} title="Convertir a Factura">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {quotes.map((quote) => (
+                    <tr key={quote.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {quote.quote_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {quote.client_name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(quote.issue_date)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatCurrency(quote.total)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(quote.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => openModal(quote)}
+                            className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-full"
+                            title="Editar Cotización"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteQuote(quote.id)}
+                            className="p-1 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-full"
+                            title="Eliminar Cotización"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPdf(quote)}
+                            className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-full"
+                            title="Descargar PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleConvertToInvoice(quote)}
+                            className="p-1 text-green-600 hover:text-green-900 hover:bg-green-100 rounded-full"
+                            title="Convertir a Factura"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden divide-y divide-gray-200">
+              {quotes.map((quote) => (
+                <div key={quote.id} className="p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 truncate">
+                        {quote.quote_number}
+                      </h3>
+                      <p className="text-xs text-gray-600 truncate">{quote.client_name}</p>
+                      <p className="text-xs text-gray-500">{formatDate(quote.issue_date)}</p>
+                    </div>
+                    <div className="flex-shrink-0 ml-2">
+                      {getStatusBadge(quote.status)}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2 text-xs mb-3">
+                    <div>
+                      <span className="text-gray-500">Total:</span>
+                      <span className="font-medium text-gray-900 ml-1">
+                        {formatCurrency(quote.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-1">
+                    <button
+                      onClick={() => openModal(quote)}
+                      className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-full"
+                      title="Editar Cotización"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteQuote(quote.id)}
+                      className="p-1 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-full"
+                      title="Eliminar Cotización"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPdf(quote)}
+                      className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-full"
+                      title="Descargar PDF"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleConvertToInvoice(quote)}
+                      className="p-1 text-green-600 hover:text-green-900 hover:bg-green-100 rounded-full"
+                      title="Convertir a Factura"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-6">{editingQuote ? 'Editar Cotización' : 'Nueva Cotización'}</h3>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Client and Dates */}

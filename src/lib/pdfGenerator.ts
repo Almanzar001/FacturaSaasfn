@@ -103,7 +103,7 @@ export const generateInvoicePdf = async (
       const reader = new FileReader();
       await new Promise<void>((resolve, reject) => {
         reader.onload = () => {
-          // Create a circular clipping path for the logo
+          // Create a circular clipping path for the logo (no visible circle, just clipping)
           const logoSize = 25;
           const logoX = 15;
           const logoY = y;
@@ -119,9 +119,10 @@ export const generateInvoicePdf = async (
           // Save the current graphics state
           doc.saveGraphicsState();
           
-          // Create circular clipping path
+          // Create circular clipping path (invisible, just for clipping)
           doc.circle(centerX, centerY, radius);
           doc.clip();
+          doc.discardPath(); // Remove the circle path so it doesn't get drawn
           
           // Add the expanded image within the circular clip
           doc.addImage(reader.result as string, 'PNG', expandedX, expandedY, expandedSize, expandedSize);
