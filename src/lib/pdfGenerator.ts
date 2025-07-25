@@ -85,9 +85,15 @@ export const generateInvoicePdf = async (
   invoice: Invoice,
   items: InvoiceItem[]
 ) => {
-  const doc = new jsPDF() as jsPDFWithAutoTable;
-  const pageHeight = doc.internal.pageSize.height;
-  let y = 15; // Initial y position
+  // Validate required data
+  if (!organization || !client || !invoice || !items) {
+    throw new Error('Datos requeridos faltantes para generar el PDF');
+  }
+
+  try {
+    const doc = new jsPDF() as jsPDFWithAutoTable;
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 15; // Initial y position
 
   // --- Header ---
   if (organization.logo_url) {
@@ -108,7 +114,7 @@ export const generateInvoicePdf = async (
   }
 
   doc.setFontSize(18);
-  doc.text(organization.name, 50, y + 7);
+  doc.text(organization.name || 'Sin nombre', 50, y + 7);
   doc.setFontSize(10);
   if (organization.settings?.address) {
     doc.text(organization.settings.address, 50, y + 13);
@@ -127,7 +133,7 @@ export const generateInvoicePdf = async (
   doc.setFont('helvetica', 'bold');
   doc.text('FACTURA', 15, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Número: ${invoice.invoice_number}`, 15, y + 7);
+  doc.text(`Número: ${invoice.invoice_number || 'Sin número'}`, 15, y + 7);
   doc.text(`Fecha de Emisión: ${formatDate(invoice.issue_date)}`, 15, y + 14);
   doc.text(`Fecha de Vencimiento: ${formatDate(invoice.due_date)}`, 15, y + 21);
 
@@ -135,11 +141,11 @@ export const generateInvoicePdf = async (
   doc.setFont('helvetica', 'bold');
   doc.text('Cliente:', 110, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(client.name, 110, y + 7);
+  doc.text(client.name || 'Sin nombre', 110, y + 7);
   if (client.address) {
     doc.text(client.address, 110, y + 14);
   }
-  doc.text(client.email, 110, y + 21);
+  doc.text(client.email || 'Sin email', 110, y + 21);
   if (client.rnc) {
     doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
   }
@@ -152,10 +158,10 @@ export const generateInvoicePdf = async (
 
   items.forEach(item => {
     const itemData = [
-      item.product_name,
-      item.quantity,
-      formatCurrency(item.unit_price),
-      formatCurrency(item.total)
+      item.product_name || 'Sin nombre',
+      item.quantity || 0,
+      formatCurrency(item.unit_price || 0),
+      formatCurrency(item.total || 0)
     ];
     tableRows.push(itemData);
   });
@@ -230,7 +236,12 @@ export const generateInvoicePdf = async (
     doc.text(pageText, 195 - pageWidth, footerY);
   }
 
-  doc.save(`Factura-${invoice.invoice_number}.pdf`);
+    doc.save(`Factura-${invoice.invoice_number || 'sin-numero'}.pdf`);
+  } catch (error) {
+    console.error('Error en generateInvoicePdf:', error);
+    console.error('Datos recibidos:', { organization, client, invoice, items });
+    throw new Error(`Error al generar PDF de factura: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  }
 }
 
 export const generateQuotePdf = async (
@@ -239,9 +250,15 @@ export const generateQuotePdf = async (
   quote: Quote,
   items: InvoiceItem[] // Reusing InvoiceItem for simplicity
 ) => {
-  const doc = new jsPDF() as jsPDFWithAutoTable;
-  const pageHeight = doc.internal.pageSize.height;
-  let y = 15;
+  // Validate required data
+  if (!organization || !client || !quote || !items) {
+    throw new Error('Datos requeridos faltantes para generar el PDF');
+  }
+
+  try {
+    const doc = new jsPDF() as jsPDFWithAutoTable;
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 15;
 
   // --- Header ---
   if (organization.logo_url) {
@@ -262,7 +279,7 @@ export const generateQuotePdf = async (
   }
 
   doc.setFontSize(18);
-  doc.text(organization.name, 50, y + 7);
+  doc.text(organization.name || 'Sin nombre', 50, y + 7);
   doc.setFontSize(10);
   if (organization.settings?.address) {
     doc.text(organization.settings.address, 50, y + 13);
@@ -281,7 +298,7 @@ export const generateQuotePdf = async (
   doc.setFont('helvetica', 'bold');
   doc.text('COTIZACIÓN', 15, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Número: ${quote.quote_number}`, 15, y + 7);
+  doc.text(`Número: ${quote.quote_number || 'Sin número'}`, 15, y + 7);
   doc.text(`Fecha de Emisión: ${formatDate(quote.issue_date)}`, 15, y + 14);
   doc.text(`Válida Hasta: ${formatDate(quote.valid_until)}`, 15, y + 21);
 
@@ -289,11 +306,11 @@ export const generateQuotePdf = async (
   doc.setFont('helvetica', 'bold');
   doc.text('Cliente:', 110, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(client.name, 110, y + 7);
+  doc.text(client.name || 'Sin nombre', 110, y + 7);
   if (client.address) {
     doc.text(client.address, 110, y + 14);
   }
-  doc.text(client.email, 110, y + 21);
+  doc.text(client.email || 'Sin email', 110, y + 21);
   if (client.rnc) {
     doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
   }
@@ -306,10 +323,10 @@ export const generateQuotePdf = async (
 
   items.forEach(item => {
     const itemData = [
-      item.product_name,
-      item.quantity,
-      formatCurrency(item.unit_price),
-      formatCurrency(item.total)
+      item.product_name || 'Sin nombre',
+      item.quantity || 0,
+      formatCurrency(item.unit_price || 0),
+      formatCurrency(item.total || 0)
     ];
     tableRows.push(itemData);
   });
@@ -370,5 +387,10 @@ export const generateQuotePdf = async (
     doc.text(quotePageText, 195 - quotePageWidth, footerY);
   }
 
-  doc.save(`Cotizacion-${quote.quote_number}.pdf`);
+    doc.save(`Cotizacion-${quote.quote_number || 'sin-numero'}.pdf`);
+  } catch (error) {
+    console.error('Error en generateQuotePdf:', error);
+    console.error('Datos recibidos:', { organization, client, quote, items });
+    throw new Error(`Error al generar PDF de cotización: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  }
 }
