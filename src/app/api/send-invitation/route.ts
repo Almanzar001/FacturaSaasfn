@@ -11,7 +11,14 @@ export async function POST(request: Request) {
 
     // Verificar que la API key esté disponible
     if (!process.env.RESEND_API_KEY) {
-      return NextResponse.json({ error: 'RESEND_API_KEY no está configurada' }, { status: 500 })
+      console.error('RESEND_API_KEY no está configurada en las variables de entorno')
+      return NextResponse.json({ error: 'RESEND_API_KEY no está configurada. Por favor, configura una API key válida de Resend.' }, { status: 500 })
+    }
+
+    // Verificar que la API key tenga el formato correcto
+    if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+      console.error('RESEND_API_KEY no tiene el formato correcto')
+      return NextResponse.json({ error: 'RESEND_API_KEY no tiene el formato correcto. Debe comenzar con "re_"' }, { status: 500 })
     }
 
     // Inicializar Resend dentro de la función
