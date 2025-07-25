@@ -167,15 +167,27 @@ export default function SettingsClient({ user }: SettingsClientProps) {
 
   const fetchTeamData = async (orgId: string) => {
     try {
+      console.log('Fetching team data for org:', orgId)
+      
       const { data, error } = await supabase.rpc('get_team_data', {
         p_organization_id: orgId,
       })
 
+      console.log('Team data response:', { data, error })
+
       if (error) throw error
 
-      setTeamMembers(data.members || [])
-      setInvitations(data.invitations || [])
+      // The RPC function returns an array with one object containing members and invitations
+      if (data && data.length > 0) {
+        const teamData = data[0]
+        setTeamMembers(teamData.members || [])
+        setInvitations(teamData.invitations || [])
+      } else {
+        setTeamMembers([])
+        setInvitations([])
+      }
     } catch (error) {
+      console.error('Error fetching team data:', error)
       setTeamMembers([])
       setInvitations([])
     }
