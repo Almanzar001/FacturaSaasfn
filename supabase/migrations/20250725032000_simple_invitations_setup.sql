@@ -1,9 +1,5 @@
--- Complete setup for invitations system
--- This migration creates all necessary tables, functions, and extensions
-
--- Enable required extensions (pgcrypto for gen_random_bytes)
--- Note: If pgcrypto is not available, we'll use gen_random_uuid() as fallback
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Simple invitations setup without pgcrypto dependency
+-- This migration creates all necessary tables and functions using only native PostgreSQL functions
 
 -- Create invitations table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.invitations (
@@ -27,6 +23,11 @@ CREATE INDEX IF NOT EXISTS idx_invitations_status ON public.invitations(status);
 
 -- Enable RLS on invitations table
 ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view invitations for their organization" ON public.invitations;
+DROP POLICY IF EXISTS "Admins and owners can create invitations" ON public.invitations;
+DROP POLICY IF EXISTS "Admins and owners can update invitations" ON public.invitations;
 
 -- RLS policies for invitations
 CREATE POLICY "Users can view invitations for their organization" ON public.invitations
@@ -60,7 +61,7 @@ DROP FUNCTION IF EXISTS public.accept_invitation(text, uuid);
 DROP FUNCTION IF EXISTS public.get_invitation_details(text);
 DROP FUNCTION IF EXISTS public.get_team_data(uuid);
 
--- Function to invite user to organization
+-- Function to invite user to organization (using simple UUID-based token)
 CREATE OR REPLACE FUNCTION public.invite_user_to_organization(
   p_organization_id uuid,
   p_email text,
@@ -106,13 +107,8 @@ BEGIN
     RAISE EXCEPTION 'There is already a pending invitation for this email';
   END IF;
   
-  -- Generate a unique token using gen_random_uuid as fallback
-  BEGIN
-    invitation_token := encode(gen_random_bytes(32), 'hex');
-  EXCEPTION WHEN OTHERS THEN
-    -- Fallback to gen_random_uuid if pgcrypto is not available
-    invitation_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
-  END;
+  -- Generate a unique token using UUID (no pgcrypto needed)
+  invitation_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
   
   -- Insert the invitation
   INSERT INTO public.invitations (
