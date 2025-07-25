@@ -95,7 +95,7 @@ export const generateInvoicePdf = async (
     const pageHeight = doc.internal.pageSize.height;
     let y = 15; // Initial y position
 
-  // --- Header ---
+  // --- Professional Header with Logo ---
   if (organization.logo_url) {
     try {
       const response = await fetch(organization.logo_url);
@@ -103,32 +103,13 @@ export const generateInvoicePdf = async (
       const reader = new FileReader();
       await new Promise<void>((resolve, reject) => {
         reader.onload = () => {
-          // Create a circular clipping path for the logo (no visible circle, just clipping)
-          const logoSize = 25;
+          // Professional logo sizing - much larger and better positioned
+          const logoSize = 40; // Increased from 25 to 40
           const logoX = 15;
           const logoY = y;
-          const centerX = logoX + logoSize / 2;
-          const centerY = logoY + logoSize / 2;
-          const radius = logoSize / 2;
           
-          // Expand the image size to fill the circle better
-          const expandedSize = logoSize * 1.2; // 20% larger
-          const expandedX = logoX - (expandedSize - logoSize) / 2;
-          const expandedY = logoY - (expandedSize - logoSize) / 2;
-          
-          // Save the current graphics state
-          doc.saveGraphicsState();
-          
-          // Create circular clipping path (invisible, just for clipping)
-          doc.circle(centerX, centerY, radius);
-          doc.clip();
-          doc.discardPath(); // Remove the circle path so it doesn't get drawn
-          
-          // Add the expanded image within the circular clip
-          doc.addImage(reader.result as string, 'PNG', expandedX, expandedY, expandedSize, expandedSize);
-          
-          // Restore the graphics state
-          doc.restoreGraphicsState();
+          // Add the logo with better quality (no border)
+          doc.addImage(reader.result as string, 'JPEG', logoX, logoY, logoSize, logoSize);
           
           resolve();
         };
@@ -136,47 +117,95 @@ export const generateInvoicePdf = async (
         reader.readAsDataURL(blob);
       });
     } catch (error) {
+      console.warn('Error loading logo:', error);
     }
   }
 
-  doc.setFontSize(18);
-  doc.text(organization.name || 'Sin nombre', 50, y + 7);
-  doc.setFontSize(10);
+  // Company information with better typography and spacing
+  const companyInfoX = organization.logo_url ? 65 : 15; // Adjust position based on logo presence
+  
+  // Company name with enhanced styling
+  doc.setFontSize(22); // Increased font size
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(44, 62, 80); // Professional dark blue-gray
+  doc.text(organization.name || 'Sin nombre', companyInfoX, y + 12);
+  
+  // Company details with consistent styling
+  doc.setFontSize(11); // Slightly larger for better readability
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(52, 73, 94); // Slightly lighter gray
+  
+  let detailY = y + 20;
   if (organization.settings?.address) {
-    doc.text(organization.settings.address, 50, y + 13);
+    doc.text(organization.settings.address, companyInfoX, detailY);
+    detailY += 6;
   }
   if (organization.settings?.rnc) {
-    doc.text(`RNC: ${organization.settings.rnc}`, 50, y + 18);
+    doc.text(`RNC: ${organization.settings.rnc}`, companyInfoX, detailY);
+    detailY += 6;
   }
   if (organization.settings?.phone) {
-    doc.text(`Tel: ${organization.settings.phone}`, 50, y + 23);
+    doc.text(`Tel: ${organization.settings.phone}`, companyInfoX, detailY);
+    detailY += 6;
+  }
+  if (organization.settings?.email) {
+    doc.text(`Email: ${organization.settings.email}`, companyInfoX, detailY);
+    detailY += 6;
   }
   
-  y += 40;
+  // Add a professional separator line
+  doc.setDrawColor(255, 140, 0); // Orange color
+  doc.setLineWidth(1);
+  doc.line(15, y + 50, 195, y + 50);
+  
+  // Reset text color for the rest of the document
+  doc.setTextColor(0, 0, 0);
+  
+  y += 60; // Increased spacing for better layout
 
-  // --- Invoice Details ---
-  doc.setFontSize(12);
+  // --- Invoice Details Section with Professional Styling ---
+  // Invoice title with background
+  doc.setFillColor(255, 140, 0); // Orange background
+  doc.rect(15, y - 2, 80, 18, 'F');
+  doc.setTextColor(255, 255, 255); // White text
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('FACTURA', 15, y);
+  doc.text('FACTURA', 18, y + 8);
+  
+  // Reset colors and add invoice details
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Número: ${invoice.invoice_number || 'Sin número'}`, 15, y + 7);
-  doc.text(`Fecha de Emisión: ${formatDate(invoice.issue_date)}`, 15, y + 14);
-  doc.text(`Fecha de Vencimiento: ${formatDate(invoice.due_date)}`, 15, y + 21);
+  doc.text(`Número: ${invoice.invoice_number || 'Sin número'}`, 15, y + 22);
+  doc.text(`Fecha de Emisión: ${formatDate(invoice.issue_date)}`, 15, y + 29);
+  doc.text(`Fecha de Vencimiento: ${formatDate(invoice.due_date)}`, 15, y + 36);
 
-  // --- Client Details ---
+  // --- Client Details Section with Professional Styling ---
+  // Client title with background
+  doc.setFillColor(52, 73, 94); // Professional gray background
+  doc.rect(110, y - 2, 80, 18, 'F');
+  doc.setTextColor(255, 255, 255); // White text
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Cliente:', 110, y);
+  doc.text('CLIENTE', 113, y + 8);
+  
+  // Reset colors and add client details
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(client.name || 'Sin nombre', 110, y + 7);
+  doc.text(client.name || 'Sin nombre', 110, y + 22);
+  let clientDetailY = y + 29;
   if (client.address) {
-    doc.text(client.address, 110, y + 14);
+    doc.text(client.address, 110, clientDetailY);
+    clientDetailY += 7;
   }
-  doc.text(client.email || 'Sin email', 110, y + 21);
+  doc.text(client.email || 'Sin email', 110, clientDetailY);
+  clientDetailY += 7;
   if (client.rnc) {
-    doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
+    doc.text(`RNC/Cédula: ${client.rnc}`, 110, clientDetailY);
   }
 
-  y += 35;
+  y += 50; // Increased spacing
 
   // --- Items Table ---
   const tableColumn = ["Descripción", "Cantidad", "Precio Unit.", "Total"];
@@ -197,47 +226,101 @@ export const generateInvoicePdf = async (
     body: tableRows,
     startY: y,
     theme: 'striped',
-    headStyles: { fillColor: [22, 160, 133] }, // Theme color
+    headStyles: {
+      fillColor: [255, 140, 0], // Orange color
+      textColor: [255, 255, 255], // White text
+      fontSize: 11,
+      fontStyle: 'bold',
+      halign: 'center'
+    },
+    bodyStyles: {
+      fontSize: 10,
+      cellPadding: 4
+    },
+    alternateRowStyles: {
+      fillColor: [248, 249, 250] // Very light gray for alternate rows
+    },
+    columnStyles: {
+      0: { halign: 'left' }, // Description
+      1: { halign: 'center' }, // Quantity
+      2: { halign: 'right' }, // Unit Price
+      3: { halign: 'right' } // Total
+    },
+    margin: { left: 15, right: 15 },
+    tableWidth: 'auto'
   });
 
   if (doc.lastAutoTable) {
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // --- Totals ---
-  const totalsX = 140;
-  doc.setFontSize(10);
+  // --- Professional Totals Section ---
+  const totalsX = 120;
+  const totalsWidth = 75;
+  
+  // Add background for totals section
+  doc.setFillColor(248, 249, 250); // Light gray background
+  doc.rect(totalsX - 5, y - 5, totalsWidth + 10, 45, 'F');
+  
+  // Add border
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.rect(totalsX - 5, y - 5, totalsWidth + 10, 45);
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(52, 73, 94);
+  
+  // Subtotal
   doc.text('Subtotal:', totalsX, y);
   const subtotalText = formatCurrency(invoice.subtotal);
   const subtotalWidth = doc.getTextWidth(subtotalText);
-  doc.text(subtotalText, 195 - subtotalWidth, y);
+  doc.text(subtotalText, totalsX + totalsWidth - subtotalWidth, y);
   
-  y += 7;
+  y += 8;
+  // Tax
   doc.text(`ITBIS (${((invoice.tax / invoice.subtotal) * 100 || 0).toFixed(0)}%):`, totalsX, y);
   const taxText = formatCurrency(invoice.tax);
   const taxWidth = doc.getTextWidth(taxText);
-  doc.text(taxText, 195 - taxWidth, y);
+  doc.text(taxText, totalsX + totalsWidth - taxWidth, y);
   
-  y += 7;
+  y += 8;
+  // Total with emphasis
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0); // Black color
   doc.text('Total:', totalsX, y);
   const totalText = formatCurrency(invoice.total);
   const totalWidth = doc.getTextWidth(totalText);
-  doc.text(totalText, 195 - totalWidth, y);
+  doc.text(totalText, totalsX + totalsWidth - totalWidth, y);
 
-  y += 7;
+  y += 10;
+  // Paid amount
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(52, 73, 94);
   doc.text('Pagado:', totalsX, y);
   const paidText = formatCurrency(invoice.total - (invoice.balance ?? invoice.total));
   const paidWidth = doc.getTextWidth(paidText);
-  doc.text(paidText, 195 - paidWidth, y);
+  doc.text(paidText, totalsX + totalsWidth - paidWidth, y);
 
-  y += 7;
-  doc.setFont('helvetica', 'bold');
+  y += 8;
+  // Balance with emphasis if there's a balance
+  const balance = invoice.balance ?? 0;
+  if (balance > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(231, 76, 60); // Red for pending balance
+  } else {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(39, 174, 96); // Green for paid
+  }
   doc.text('Balance Pendiente:', totalsX, y);
-  const balanceText = formatCurrency(invoice.balance ?? 0);
+  const balanceText = formatCurrency(balance);
   const balanceWidth = doc.getTextWidth(balanceText);
-  doc.text(balanceText, 195 - balanceWidth, y);
+  doc.text(balanceText, totalsX + totalsWidth - balanceWidth, y);
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
 
   // --- Notes ---
   if (invoice.notes) {
@@ -257,9 +340,7 @@ export const generateInvoicePdf = async (
     const footerY = pageHeight - 15;
     doc.setFontSize(8);
     doc.text(organization.settings?.pdf_footer_message || 'Gracias por su negocio.', 15, footerY);
-    const pageText = `Página ${i} de ${pageCount}`;
-    const pageWidth = doc.getTextWidth(pageText);
-    doc.text(pageText, 195 - pageWidth, footerY);
+    // Removed page numbering as requested
   }
 
     doc.save(`Factura-${invoice.invoice_number || 'sin-numero'}.pdf`);
@@ -286,7 +367,7 @@ export const generateQuotePdf = async (
     const pageHeight = doc.internal.pageSize.height;
     let y = 15;
 
-  // --- Header ---
+  // --- Professional Header with Logo ---
   if (organization.logo_url) {
     try {
       const response = await fetch(organization.logo_url);
@@ -294,26 +375,13 @@ export const generateQuotePdf = async (
       const reader = new FileReader();
       await new Promise<void>((resolve, reject) => {
         reader.onload = () => {
-          // Create a circular clipping path for the logo
-          const logoSize = 25;
+          // Professional logo sizing - much larger and better positioned
+          const logoSize = 40; // Increased from 25 to 40
           const logoX = 15;
           const logoY = y;
-          const centerX = logoX + logoSize / 2;
-          const centerY = logoY + logoSize / 2;
-          const radius = logoSize / 2;
           
-          // Save the current graphics state
-          doc.saveGraphicsState();
-          
-          // Create circular clipping path
-          doc.circle(centerX, centerY, radius);
-          doc.clip();
-          
-          // Add the image within the circular clip
-          doc.addImage(reader.result as string, 'PNG', logoX, logoY, logoSize, logoSize);
-          
-          // Restore the graphics state
-          doc.restoreGraphicsState();
+          // Add the logo with better quality (no border)
+          doc.addImage(reader.result as string, 'JPEG', logoX, logoY, logoSize, logoSize);
           
           resolve();
         };
@@ -321,47 +389,95 @@ export const generateQuotePdf = async (
         reader.readAsDataURL(blob);
       });
     } catch (error) {
+      console.warn('Error loading logo:', error);
     }
   }
 
-  doc.setFontSize(18);
-  doc.text(organization.name || 'Sin nombre', 50, y + 7);
-  doc.setFontSize(10);
+  // Company information with better typography and spacing
+  const companyInfoX = organization.logo_url ? 65 : 15; // Adjust position based on logo presence
+  
+  // Company name with enhanced styling
+  doc.setFontSize(22); // Increased font size
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(44, 62, 80); // Professional dark blue-gray
+  doc.text(organization.name || 'Sin nombre', companyInfoX, y + 12);
+  
+  // Company details with consistent styling
+  doc.setFontSize(11); // Slightly larger for better readability
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(52, 73, 94); // Slightly lighter gray
+  
+  let detailY = y + 20;
   if (organization.settings?.address) {
-    doc.text(organization.settings.address, 50, y + 13);
+    doc.text(organization.settings.address, companyInfoX, detailY);
+    detailY += 6;
   }
   if (organization.settings?.rnc) {
-    doc.text(`RNC: ${organization.settings.rnc}`, 50, y + 18);
+    doc.text(`RNC: ${organization.settings.rnc}`, companyInfoX, detailY);
+    detailY += 6;
   }
   if (organization.settings?.phone) {
-    doc.text(`Tel: ${organization.settings.phone}`, 50, y + 23);
+    doc.text(`Tel: ${organization.settings.phone}`, companyInfoX, detailY);
+    detailY += 6;
+  }
+  if (organization.settings?.email) {
+    doc.text(`Email: ${organization.settings.email}`, companyInfoX, detailY);
+    detailY += 6;
   }
   
-  y += 40;
+  // Add a professional separator line
+  doc.setDrawColor(255, 140, 0); // Orange color
+  doc.setLineWidth(1);
+  doc.line(15, y + 50, 195, y + 50);
+  
+  // Reset text color for the rest of the document
+  doc.setTextColor(0, 0, 0);
+  
+  y += 60; // Increased spacing for better layout
 
-  // --- Quote Details ---
-  doc.setFontSize(12);
+  // --- Quote Details Section with Professional Styling ---
+  // Quote title with background
+  doc.setFillColor(255, 140, 0); // Orange background
+  doc.rect(15, y - 2, 80, 18, 'F');
+  doc.setTextColor(255, 255, 255); // White text
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('COTIZACIÓN', 15, y);
+  doc.text('COTIZACIÓN', 18, y + 8);
+  
+  // Reset colors and add quote details
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Número: ${quote.quote_number || 'Sin número'}`, 15, y + 7);
-  doc.text(`Fecha de Emisión: ${formatDate(quote.issue_date)}`, 15, y + 14);
-  doc.text(`Válida Hasta: ${formatDate(quote.valid_until)}`, 15, y + 21);
+  doc.text(`Número: ${quote.quote_number || 'Sin número'}`, 15, y + 22);
+  doc.text(`Fecha de Emisión: ${formatDate(quote.issue_date)}`, 15, y + 29);
+  doc.text(`Válida Hasta: ${formatDate(quote.valid_until)}`, 15, y + 36);
 
-  // --- Client Details ---
+  // --- Client Details Section with Professional Styling ---
+  // Client title with background
+  doc.setFillColor(52, 73, 94); // Professional gray background
+  doc.rect(110, y - 2, 80, 18, 'F');
+  doc.setTextColor(255, 255, 255); // White text
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Cliente:', 110, y);
+  doc.text('CLIENTE', 113, y + 8);
+  
+  // Reset colors and add client details
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(client.name || 'Sin nombre', 110, y + 7);
+  doc.text(client.name || 'Sin nombre', 110, y + 22);
+  let clientDetailY = y + 29;
   if (client.address) {
-    doc.text(client.address, 110, y + 14);
+    doc.text(client.address, 110, clientDetailY);
+    clientDetailY += 7;
   }
-  doc.text(client.email || 'Sin email', 110, y + 21);
+  doc.text(client.email || 'Sin email', 110, clientDetailY);
+  clientDetailY += 7;
   if (client.rnc) {
-    doc.text(`RNC/Cédula: ${client.rnc}`, 110, y + 28);
+    doc.text(`RNC/Cédula: ${client.rnc}`, 110, clientDetailY);
   }
 
-  y += 35;
+  y += 50; // Increased spacing
 
   // --- Items Table ---
   const tableColumn = ["Descripción", "Cantidad", "Precio Unit.", "Total"];
@@ -382,33 +498,76 @@ export const generateQuotePdf = async (
     body: tableRows,
     startY: y,
     theme: 'striped',
-    headStyles: { fillColor: [22, 160, 133] },
+    headStyles: {
+      fillColor: [255, 140, 0], // Orange color
+      textColor: [255, 255, 255], // White text
+      fontSize: 11,
+      fontStyle: 'bold',
+      halign: 'center'
+    },
+    bodyStyles: {
+      fontSize: 10,
+      cellPadding: 4
+    },
+    alternateRowStyles: {
+      fillColor: [248, 249, 250] // Very light gray for alternate rows
+    },
+    columnStyles: {
+      0: { halign: 'left' }, // Description
+      1: { halign: 'center' }, // Quantity
+      2: { halign: 'right' }, // Unit Price
+      3: { halign: 'right' } // Total
+    },
+    margin: { left: 15, right: 15 },
+    tableWidth: 'auto'
   });
 
   if (doc.lastAutoTable) {
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // --- Totals ---
-  const totalsX = 140;
-  doc.setFontSize(10);
+  // --- Professional Totals Section ---
+  const totalsX = 120;
+  const totalsWidth = 75;
+  
+  // Add background for totals section
+  doc.setFillColor(248, 249, 250); // Light gray background
+  doc.rect(totalsX - 5, y - 5, totalsWidth + 10, 35, 'F');
+  
+  // Add border
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.rect(totalsX - 5, y - 5, totalsWidth + 10, 35);
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(52, 73, 94);
+  
+  // Subtotal
   doc.text('Subtotal:', totalsX, y);
   const quoteSubtotalText = formatCurrency(quote.subtotal);
   const quoteSubtotalWidth = doc.getTextWidth(quoteSubtotalText);
-  doc.text(quoteSubtotalText, 195 - quoteSubtotalWidth, y);
+  doc.text(quoteSubtotalText, totalsX + totalsWidth - quoteSubtotalWidth, y);
   
-  y += 7;
+  y += 8;
+  // Tax
   doc.text(`ITBIS (${((quote.tax_amount / quote.subtotal) * 100 || 0).toFixed(0)}%):`, totalsX, y);
   const quoteTaxText = formatCurrency(quote.tax_amount);
   const quoteTaxWidth = doc.getTextWidth(quoteTaxText);
-  doc.text(quoteTaxText, 195 - quoteTaxWidth, y);
+  doc.text(quoteTaxText, totalsX + totalsWidth - quoteTaxWidth, y);
   
-  y += 7;
+  y += 8;
+  // Total with emphasis
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0); // Black color
   doc.text('Total:', totalsX, y);
   const quoteTotalText = formatCurrency(quote.total);
   const quoteTotalWidth = doc.getTextWidth(quoteTotalText);
-  doc.text(quoteTotalText, 195 - quoteTotalWidth, y);
+  doc.text(quoteTotalText, totalsX + totalsWidth - quoteTotalWidth, y);
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
 
   // --- Notes ---
   if (quote.notes) {
@@ -428,9 +587,7 @@ export const generateQuotePdf = async (
     const footerY = pageHeight - 15;
     doc.setFontSize(8);
     doc.text(organization.settings?.pdf_footer_message || 'Gracias por su interés.', 15, footerY);
-    const quotePageText = `Página ${i} de ${pageCountQuote}`;
-    const quotePageWidth = doc.getTextWidth(quotePageText);
-    doc.text(quotePageText, 195 - quotePageWidth, footerY);
+    // Removed page numbering as requested
   }
 
     doc.save(`Cotizacion-${quote.quote_number || 'sin-numero'}.pdf`);

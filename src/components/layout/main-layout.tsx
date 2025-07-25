@@ -2,6 +2,7 @@
 
 import { User } from '@supabase/supabase-js'
 import { Sidebar, MobileSidebar } from './sidebar'
+import { Logo } from '@/components/ui/logo'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 
@@ -43,7 +44,7 @@ export function MainLayout({ children, user, userRole, className }: MainLayoutPr
           
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <h1 className="text-lg font-semibold text-foreground truncate">FacturaSaaS</h1>
+              <Logo size="md" className="text-foreground" />
             </div>
           </div>
         </div>

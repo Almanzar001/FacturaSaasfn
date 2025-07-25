@@ -16,6 +16,7 @@ import {
   CreditCard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/ui/logo'
 import { useState } from 'react'
 
 const navigation = [
@@ -64,14 +65,7 @@ function SidebarContent({ pathname, collapsed, onToggle, userRole }: SidebarCont
     <div className="flex h-full min-h-0 flex-col bg-background border-r">
       {/* Header */}
       <div className="flex h-16 shrink-0 items-center border-b px-6">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Receipt className="h-4 w-4" />
-            </div>
-            <span className="font-semibold">FacturaSaaS</span>
-          </div>
-        )}
+        <Logo collapsed={collapsed} />
         {onToggle && (
           <Button
             variant="ghost"
@@ -175,12 +169,7 @@ export function MobileSidebar({ userRole }: MobileSidebarProps) {
           />
           <div className="fixed inset-0 left-0 z-50 w-72 bg-white border-r shadow-xl flex flex-col h-screen">
             <div className="flex h-16 shrink-0 items-center justify-between border-b px-6 bg-white">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Receipt className="h-4 w-4" />
-                </div>
-                <span className="font-semibold text-gray-900">FacturaSaaS</span>
-              </div>
+              <Logo className="text-gray-900" />
               <Button
                 variant="ghost"
                 size="icon"
