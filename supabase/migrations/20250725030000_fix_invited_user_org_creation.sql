@@ -2,9 +2,12 @@
 -- This migration modifies the handle_new_user function to check if a user
 -- is being created through an invitation before creating a new organization
 
--- Drop existing trigger and function
+-- Drop existing trigger and functions
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS public.accept_invitation(text, uuid);
+DROP FUNCTION IF EXISTS public.get_invitation_details(text);
+DROP FUNCTION IF EXISTS public.invite_user_to_organization(uuid, text, text);
 
 -- Updated function that checks for pending invitations before creating organization
 create or replace function public.handle_new_user()
