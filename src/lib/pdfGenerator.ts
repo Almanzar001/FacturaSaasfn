@@ -111,6 +111,11 @@ export const generateInvoicePdf = async (
           const centerY = logoY + logoSize / 2;
           const radius = logoSize / 2;
           
+          // Expand the image size to fill the circle better
+          const expandedSize = logoSize * 1.2; // 20% larger
+          const expandedX = logoX - (expandedSize - logoSize) / 2;
+          const expandedY = logoY - (expandedSize - logoSize) / 2;
+          
           // Save the current graphics state
           doc.saveGraphicsState();
           
@@ -118,8 +123,8 @@ export const generateInvoicePdf = async (
           doc.circle(centerX, centerY, radius);
           doc.clip();
           
-          // Add the image within the circular clip
-          doc.addImage(reader.result as string, 'PNG', logoX, logoY, logoSize, logoSize);
+          // Add the expanded image within the circular clip
+          doc.addImage(reader.result as string, 'PNG', expandedX, expandedY, expandedSize, expandedSize);
           
           // Restore the graphics state
           doc.restoreGraphicsState();
