@@ -307,7 +307,7 @@ export default function QuotesClient() {
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: item.total,
-        description: item.description,
+        description: item.product_name,
       }))
 
       const { error: itemsError } = await supabase
@@ -390,7 +390,7 @@ export default function QuotesClient() {
       try {
         const { data: items, error } = await supabase
           .from('quote_items')
-          .select(`*`)
+          .select('*, products(name)')
           .eq('quote_id', quote.id)
 
         if (error) throw error
@@ -398,7 +398,7 @@ export default function QuotesClient() {
         const formattedItems = (items || []).map((item: any) => ({
           id: item.id,
           product_id: item.product_id,
-          product_name: item.product_name,
+          product_name: item.description || item.products?.name || 'Producto eliminado',
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -551,13 +551,13 @@ export default function QuotesClient() {
     try {
       const { data: items, error } = await supabase
         .from('quote_items')
-        .select('*')
+        .select('*, products(name)')
         .eq('quote_id', quote.id);
 
       if (error) throw error;
 
       const formattedItems = (items || []).map((item: any) => ({
-        product_name: item.product_name,
+        product_name: item.description || item.products?.name || 'Producto no encontrado',
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
