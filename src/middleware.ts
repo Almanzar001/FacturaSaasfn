@@ -35,13 +35,18 @@ export async function middleware(request: NextRequest) {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('onboarding_completed, organization_id')
+        .select('onboarding_completed, organization_id, role')
         .eq('id', session.user.id)
         .single()
 
       // If user has organization but onboarding not complete, redirect to settings
+      // But only if they have permission to access settings (propietario or administrador)
       if (profile?.organization_id && !profile.onboarding_completed) {
-        return NextResponse.redirect(new URL('/configuraciones', request.url))
+        const userRole = profile.role || 'vendedor'
+        if (userRole === 'propietario' || userRole === 'administrador') {
+          return NextResponse.redirect(new URL('/configuraciones', request.url))
+        }
+        // For vendedores, let them access dashboard even if onboarding is not complete
       }
     } catch (error) {
       // If there's an error fetching profile, let the request continue
