@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     })
 
     if (error) {
+      console.error('Error detallado de Resend:', error)
       const errorMessage = error instanceof Error ? error.message : JSON.stringify(error)
       return NextResponse.json({ error: `Error al enviar el correo desde Resend: ${errorMessage}` }, { status: 500 })
     }
