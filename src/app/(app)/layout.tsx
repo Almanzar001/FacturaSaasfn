@@ -15,8 +15,6 @@ export default async function AppLayout({
     return redirect('/login')
   }
 
-  // The middleware now handles all redirection logic.
-  // This component only needs to fetch the user's role for UI purposes.
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')

@@ -27,31 +27,6 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
-  const { pathname } = request.nextUrl
-
-  // Only handle onboarding redirect for dashboard access
-  if (session && pathname === '/dashboard') {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_completed, organization_id, role')
-        .eq('id', session.user.id)
-        .single()
-
-      // Allow propietarios to access dashboard even without completing onboarding
-      // Only redirect to settings if they explicitly want to configure their organization
-      // Vendedores can always access dashboard
-      const userRole = profile?.role || 'vendedor'
-      
-      // No automatic redirects - let users choose when to configure their organization
-      // The dashboard will show helpful prompts for new organizations
-      
-    } catch (error) {
-      // If there's an error fetching profile, let the request continue
-    }
-  }
-
   return response
 }
 

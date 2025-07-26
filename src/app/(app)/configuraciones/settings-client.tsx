@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import TeamMembers from './team-members'
+import AccountsSettings from './accounts-settings'
 
 interface SettingsClientProps {
   user: SupabaseUser
@@ -54,10 +55,19 @@ interface Invitation {
   status: string
 }
 
+interface Account {
+  id: string
+  name: string
+  type: string
+  balance: number
+  is_default: boolean
+}
+
 export default function SettingsClient({ user }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState('organization')
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [userRole, setUserRole] = useState('')
@@ -116,6 +126,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
           fetchOrganizationDetails(profile.organization_id),
           fetchDocumentTypes(profile.organization_id),
           fetchTeamData(profile.organization_id),
+          fetchAccounts(profile.organization_id),
         ])
       } else {
         alert("No se pudo cargar la información de su organización. Por favor, recargue la página o contacte a soporte si el problema persiste.")
@@ -190,6 +201,21 @@ export default function SettingsClient({ user }: SettingsClientProps) {
       console.error('Error fetching team data:', error)
       setTeamMembers([])
       setInvitations([])
+    }
+  }
+
+  const fetchAccounts = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('organization_id', orgId)
+        .order('name')
+
+      if (error) throw error
+      setAccounts(data || [])
+    } catch (error) {
+      alert('Error al cargar las cuentas.')
     }
   }
 
@@ -379,10 +405,11 @@ export default function SettingsClient({ user }: SettingsClientProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="organization">Organización</TabsTrigger>
             <TabsTrigger value="team">Equipo</TabsTrigger>
             <TabsTrigger value="documentTypes">Tipos de Comprobante</TabsTrigger>
+            <TabsTrigger value="accounts">Cuentas</TabsTrigger>
           </TabsList>
           
           <TabsContent value="organization">
@@ -498,6 +525,10 @@ export default function SettingsClient({ user }: SettingsClientProps) {
               onTeamChange={() => fetchTeamData(organizationId!)}
               userRole={userRole}
             />
+          </TabsContent>
+
+          <TabsContent value="accounts">
+            <AccountsSettings organizationId={organizationId!} />
           </TabsContent>
 
         </Tabs>

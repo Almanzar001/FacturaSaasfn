@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2 } from 'lucide-react'
+import SearchInput from '@/components/ui/search-input'
 
 
 interface Client {
@@ -18,6 +19,8 @@ interface Client {
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
+  const [filteredClients, setFilteredClients] = useState<Client[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -81,11 +84,40 @@ export default function ClientsClient() {
 
       if (error) throw error
       setClients(data || [])
+      setFilteredClients(data || [])
     } catch (error) {
       setError('Error al cargar los clientes.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar clientes
+  const filterClients = (query: string) => {
+    if (!query.trim()) {
+      setFilteredClients(clients)
+      return
+    }
+
+    const filtered = clients.filter(client =>
+      client.name.toLowerCase().includes(query.toLowerCase()) ||
+      client.email?.toLowerCase().includes(query.toLowerCase()) ||
+      client.phone?.toLowerCase().includes(query.toLowerCase()) ||
+      client.address?.toLowerCase().includes(query.toLowerCase()) ||
+      client.rnc?.toLowerCase().includes(query.toLowerCase())
+    )
+    
+    setFilteredClients(filtered)
+  }
+
+  // Effect para manejar la búsqueda
+  useEffect(() => {
+    filterClients(searchQuery)
+  }, [searchQuery, clients])
+
+  // Función para manejar la búsqueda
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,21 +244,34 @@ export default function ClientsClient() {
         </button>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <SearchInput
+          placeholder="Buscar clientes por nombre, email, teléfono, dirección o RNC..."
+          onSearch={handleSearch}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Clients Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Clientes</h2>
         </div>
         
-        {clients.length === 0 ? (
+        {filteredClients.length === 0 ? (
           <div className="p-6 sm:p-8 text-center">
-            <p className="text-gray-500 mb-4">No hay clientes registrados</p>
-            <button
-              onClick={() => openModal()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-            >
-              Crear primer cliente
-            </button>
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => openModal()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Crear primer cliente
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -243,7 +288,7 @@ export default function ClientsClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {clients.map((client) => (
+                  {filteredClients.map((client) => (
                     <tr key={client.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{client.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{client.email || 'N/A'}</td>
@@ -263,7 +308,7 @@ export default function ClientsClient() {
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-gray-200">
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <div key={client.id} className="p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-sm font-medium text-gray-900 truncate flex-1 mr-2">{client.name}</h3>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, Calendar } from 'lucide-react'
+import SearchInput from '@/components/ui/search-input'
 
 interface Expense {
   id: string
@@ -18,6 +19,8 @@ interface Expense {
 
 export default function ExpensesClient() {
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -83,11 +86,38 @@ export default function ExpensesClient() {
 
       if (error) throw error
       setExpenses(data || [])
+      setFilteredExpenses(data || [])
     } catch (error) {
       setError(`Error al cargar los gastos: ${(error as any).message}`)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar gastos
+  const filterExpenses = (query: string) => {
+    if (!query.trim()) {
+      setFilteredExpenses(expenses)
+      return
+    }
+
+    const filtered = expenses.filter(expense =>
+      expense.description.toLowerCase().includes(query.toLowerCase()) ||
+      expense.category.toLowerCase().includes(query.toLowerCase()) ||
+      expense.notes?.toLowerCase().includes(query.toLowerCase())
+    )
+    
+    setFilteredExpenses(filtered)
+  }
+
+  // Effect para manejar la búsqueda
+  useEffect(() => {
+    filterExpenses(searchQuery)
+  }, [searchQuery, expenses])
+
+  // Función para manejar la búsqueda
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -265,26 +295,39 @@ export default function ExpensesClient() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <SearchInput
+          placeholder="Buscar gastos por descripción, categoría o notas..."
+          onSearch={handleSearch}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Expenses Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Gastos</h2>
         </div>
         
-        {expenses.length === 0 ? (
+        {filteredExpenses.length === 0 ? (
           <div className="p-6 sm:p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <p className="text-gray-500 mb-4">No hay gastos registrados</p>
-            <button
-              onClick={() => openModal()}
-              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 w-full sm:w-auto"
-            >
-              Registrar primer gasto
-            </button>
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No se encontraron gastos que coincidan con la búsqueda' : 'No hay gastos registrados'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => openModal()}
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 w-full sm:w-auto"
+              >
+                Registrar primer gasto
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -301,7 +344,7 @@ export default function ExpensesClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {expenses.map((expense) => (
+                  {filteredExpenses.map((expense) => (
                     <tr key={expense.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(expense.expense_date)}
@@ -343,7 +386,7 @@ export default function ExpensesClient() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden divide-y divide-gray-200">
-              {expenses.map((expense) => (
+              {filteredExpenses.map((expense) => (
                 <div key={expense.id} className="p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0">

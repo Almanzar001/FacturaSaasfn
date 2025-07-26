@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import SearchInput from '@/components/ui/search-input'
 
 // Main Interfaces
 interface Quote {
@@ -72,6 +73,8 @@ export default function QuotesClient() {
   // Core State
   const [loading, setLoading] = useState(true)
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [clients, setClients] = useState<Client[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [organization, setOrganization] = useState<Organization | null>(null)
@@ -168,11 +171,40 @@ export default function QuotesClient() {
       }))
 
       setQuotes(formattedQuotes)
+      setFilteredQuotes(formattedQuotes)
     } catch (error) {
       setError('Error al cargar las cotizaciones')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar cotizaciones
+  const filterQuotes = (query: string) => {
+    if (!query.trim()) {
+      setFilteredQuotes(quotes)
+      return
+    }
+
+    const filtered = quotes.filter(quote =>
+      quote.quote_number.toLowerCase().includes(query.toLowerCase()) ||
+      quote.client_name.toLowerCase().includes(query.toLowerCase()) ||
+      quote.client_email.toLowerCase().includes(query.toLowerCase()) ||
+      quote.status.toLowerCase().includes(query.toLowerCase()) ||
+      quote.notes?.toLowerCase().includes(query.toLowerCase())
+    )
+    
+    setFilteredQuotes(filtered)
+  }
+
+  // Effect para manejar la búsqueda
+  useEffect(() => {
+    filterQuotes(searchQuery)
+  }, [searchQuery, quotes])
+
+  // Función para manejar la búsqueda
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
   const fetchClients = async (orgId: string) => {
@@ -556,23 +588,43 @@ export default function QuotesClient() {
 
       if (error) throw error;
 
-      const formattedItems = (items || []).map((item: any) => ({
+      // Validate that we have items
+      if (!items || items.length === 0) {
+        throw new Error('No se encontraron productos en esta cotización');
+      }
+
+      const formattedItems = items.map((item: any) => ({
         product_name: item.description || item.products?.name || 'Producto no encontrado',
         description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.quantity * item.unit_price,
+        quantity: item.quantity || 0,
+        unit_price: item.unit_price || 0,
+        total: (item.quantity || 0) * (item.unit_price || 0),
         product_id: item.product_id,
       }));
 
+      // Ensure quote has all required fields
       const quoteForPdf = {
         ...quote,
         client_name: client.name,
         client_email: client.email,
+        quote_number: quote.quote_number || 'SIN-NUMERO',
+        issue_date: quote.issue_date || new Date().toISOString().split('T')[0],
+        valid_until: quote.valid_until || new Date().toISOString().split('T')[0],
+        subtotal: quote.subtotal || 0,
+        tax_amount: quote.tax_amount || 0,
+        total: quote.total || 0,
       };
+
+      console.log('Generando PDF de cotización con datos:', {
+        organization: organization.name,
+        client: client.name,
+        quote: quoteForPdf.quote_number,
+        itemsCount: formattedItems.length
+      });
 
       await generateQuotePdf(organization, client, quoteForPdf, formattedItems);
     } catch (err) {
+      console.error('Error completo al generar PDF de cotización:', err);
       const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
       alert(`Error al generar el PDF: ${errorMessage}`);
     } finally {
@@ -641,26 +693,39 @@ export default function QuotesClient() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <SearchInput
+          placeholder="Buscar cotizaciones por número, cliente, email o estado..."
+          onSearch={handleSearch}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Quotes Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Cotizaciones</h2>
         </div>
         
-        {quotes.length === 0 ? (
+        {filteredQuotes.length === 0 ? (
           <div className="p-6 sm:p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-gray-500 mb-4">No hay cotizaciones registradas</p>
-            <button
-              onClick={() => openModal()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-            >
-              Crear primera cotización
-            </button>
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No se encontraron cotizaciones que coincidan con la búsqueda' : 'No hay cotizaciones registradas'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => openModal()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Crear primera cotización
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -678,7 +743,7 @@ export default function QuotesClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {quotes.map((quote) => (
+                  {filteredQuotes.map((quote) => (
                     <tr key={quote.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {quote.quote_number}
@@ -737,7 +802,7 @@ export default function QuotesClient() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden divide-y divide-gray-200">
-              {quotes.map((quote) => (
+              {filteredQuotes.map((quote) => (
                 <div key={quote.id} className="p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0">

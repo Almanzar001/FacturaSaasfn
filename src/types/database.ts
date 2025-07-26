@@ -9,6 +9,38 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          type: string
+          balance: number
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          type: string
+          balance?: number
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          type?: string
+          balance?: number
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       profiles: {
         Row: {
           id: string
@@ -141,6 +173,8 @@ export interface Database {
           client_id: string
           organization_id: string
           subtotal: number
+          discount_percentage: number | null
+          discount_amount: number | null
           tax: number
           total: number
           balance: number | null
@@ -150,6 +184,7 @@ export interface Database {
           notes: string | null
           tax_amount: number | null
           document_type_id: string | null
+          account_id: string | null
           created_at: string
           updated_at: string
         }
@@ -159,6 +194,8 @@ export interface Database {
           client_id: string
           organization_id: string
           subtotal: number
+          discount_percentage?: number | null
+          discount_amount?: number | null
           tax: number
           total: number
           balance?: number | null
@@ -168,6 +205,7 @@ export interface Database {
           notes?: string | null
           tax_amount?: number | null
           document_type_id?: string | null
+          account_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -177,6 +215,8 @@ export interface Database {
           client_id?: string
           organization_id?: string
           subtotal?: number
+          discount_percentage?: number | null
+          discount_amount?: number | null
           tax?: number
           total?: number
           balance?: number | null
@@ -186,6 +226,7 @@ export interface Database {
           notes?: string | null
           tax_amount?: number | null
           document_type_id?: string | null
+          account_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -337,6 +378,7 @@ export interface Database {
           notes: string | null
           created_at: string
           organization_id: string
+          account_id: string | null
         }
         Insert: {
           id?: string
@@ -347,6 +389,7 @@ export interface Database {
           notes?: string | null
           created_at?: string
           organization_id: string
+          account_id?: string | null
         }
         Update: {
           id?: string
@@ -357,38 +400,39 @@ export interface Database {
           notes?: string | null
           created_at?: string
           organization_id?: string
+          account_id?: string | null
         }
-        document_types: {
-          Row: {
-            id: string
-            organization_id: string
-            name: string
-            prefix: string
-            sequence_next_value: number
-            is_active: boolean
-            created_at: string
-            updated_at: string
-          }
-          Insert: {
-            id?: string
-            organization_id: string
-            name: string
-            prefix: string
-            sequence_next_value?: number
-            is_active?: boolean
-            created_at?: string
-            updated_at?: string
-          }
-          Update: {
-            id?: string
-            organization_id?: string
-            name?: string
-            prefix?: string
-            sequence_next_value?: number
-            is_active?: boolean
-            created_at?: string
-            updated_at?: string
-          }
+      }
+      document_types: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          prefix: string
+          sequence_next_value: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          prefix: string
+          sequence_next_value?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          prefix?: string
+          sequence_next_value?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
         }
       }
     }

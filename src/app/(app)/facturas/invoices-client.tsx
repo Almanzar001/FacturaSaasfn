@@ -5,15 +5,19 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { generateInvoicePdf } from '@/lib/pdfGenerator'
 import { Edit, Trash2, FileText, DollarSign } from 'lucide-react'
+import SearchInput from '@/components/ui/search-input'
 
 interface Invoice {
   id: string
   invoice_number: string
   document_type_id: string
+  account_id: string | null
   client_id: string
   client_name: string
   client_email: string
   subtotal: number
+  discount_percentage?: number
+  discount_amount?: number
   tax: number
   tax_amount?: number // For backward compatibility
   total: number
@@ -78,12 +82,21 @@ interface Payment {
   notes?: string
 }
 
+interface Account {
+  id: string
+  name: string
+  is_default: boolean
+}
+
 export default function InvoicesComplete() {
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [clients, setClients] = useState<Client[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
@@ -104,7 +117,10 @@ export default function InvoicesComplete() {
     tax_rate: '18', // Default 18% tax rate for Dominican Republic
     include_tax: true,
     initial_payment: 0,
-    document_type_id: ''
+    document_type_id: '',
+    account_id: '',
+    apply_discount: false,
+    discount_percentage: 0
   })
 
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([])
@@ -178,6 +194,7 @@ export default function InvoicesComplete() {
         fetchClients(profile.organization_id)
         fetchProducts(profile.organization_id)
         fetchDocumentTypes(profile.organization_id)
+        fetchAccounts(profile.organization_id)
       } else {
         setError('No se encontró organización')
         setLoading(false)
@@ -212,11 +229,40 @@ export default function InvoicesComplete() {
       }))
 
       setInvoices(formattedInvoices)
+      setFilteredInvoices(formattedInvoices)
     } catch (error) {
       setError('Error al cargar las facturas')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar facturas
+  const filterInvoices = (query: string) => {
+    if (!query.trim()) {
+      setFilteredInvoices(invoices)
+      return
+    }
+
+    const filtered = invoices.filter(invoice =>
+      invoice.invoice_number.toLowerCase().includes(query.toLowerCase()) ||
+      invoice.client_name.toLowerCase().includes(query.toLowerCase()) ||
+      invoice.client_email.toLowerCase().includes(query.toLowerCase()) ||
+      invoice.status.toLowerCase().includes(query.toLowerCase()) ||
+      invoice.notes?.toLowerCase().includes(query.toLowerCase())
+    )
+    
+    setFilteredInvoices(filtered)
+  }
+
+  // Effect para manejar la búsqueda
+  useEffect(() => {
+    filterInvoices(searchQuery)
+  }, [searchQuery, invoices])
+
+  // Función para manejar la búsqueda
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
   const fetchClients = async (orgId: string) => {
@@ -262,16 +308,51 @@ export default function InvoicesComplete() {
     }
   }
 
+  const fetchAccounts = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, name, is_default')
+        .eq('organization_id', orgId)
+        .order('name')
+
+      if (error) throw error
+      setAccounts(data || [])
+      
+      const defaultAccount = data?.find(acc => acc.is_default)
+      if (defaultAccount) {
+        setFormData(prev => ({ ...prev, account_id: defaultAccount.id }))
+      }
+    } catch (error) {
+      // Do not alert here, as it might be annoying for the user
+    }
+  }
+ 
   const calculateTotals = () => {
     const subtotal = invoiceItems.reduce((sum, item) => sum + item.total, 0)
-    if (!formData.include_tax) {
-      return { subtotal, tax: 0, total: subtotal }
-    }
-    const taxRate = parseFloat(formData.tax_rate) / 100
-    const tax = subtotal * taxRate
-    const total = subtotal + tax
     
-    return { subtotal, tax, total }
+    // Calculate discount
+    const discountAmount = formData.apply_discount
+      ? (subtotal * parseFloat(formData.discount_percentage.toString()) / 100)
+      : 0
+    
+    const subtotalAfterDiscount = subtotal - discountAmount
+    
+    if (!formData.include_tax) {
+      return {
+        subtotal,
+        discountAmount,
+        subtotalAfterDiscount,
+        tax: 0,
+        total: subtotalAfterDiscount
+      }
+    }
+    
+    const taxRate = parseFloat(formData.tax_rate) / 100
+    const tax = subtotalAfterDiscount * taxRate
+    const total = subtotalAfterDiscount + tax
+    
+    return { subtotal, discountAmount, subtotalAfterDiscount, tax, total }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -288,7 +369,7 @@ export default function InvoicesComplete() {
     }
 
     try {
-      const { subtotal, tax, total } = calculateTotals()
+      const { subtotal, discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals()
 
       const invoiceData = {
         client_id: formData.client_id,
@@ -296,11 +377,14 @@ export default function InvoicesComplete() {
         due_date: formData.due_date,
         notes: formData.notes,
         subtotal,
+        discount_percentage: formData.apply_discount ? parseFloat(formData.discount_percentage.toString()) : null,
+        discount_amount: formData.apply_discount ? discountAmount : null,
         tax,
         tax_amount: tax, // For backward compatibility with existing schema
         total,
         balance: total, // Initial balance equals total amount
-        organization_id: organizationId
+        organization_id: organizationId,
+        account_id: formData.account_id || null
       }
 
       let invoiceId: string
@@ -440,7 +524,10 @@ export default function InvoicesComplete() {
         tax_rate: invoice.tax > 0 ? ((invoice.tax / invoice.subtotal) * 100).toFixed(0) : '18',
         include_tax: invoice.tax > 0,
         initial_payment: 0, // Not applicable when editing
-        document_type_id: invoice.document_type_id || ''
+        document_type_id: invoice.document_type_id || '',
+        account_id: invoice.account_id || '',
+        apply_discount: (invoice.discount_percentage || 0) > 0,
+        discount_percentage: invoice.discount_percentage || 0
       })
 
       // Load invoice items
@@ -479,7 +566,10 @@ export default function InvoicesComplete() {
         tax_rate: '18',
         include_tax: true,
         initial_payment: 0,
-        document_type_id: ''
+        document_type_id: '',
+        account_id: accounts.find(acc => acc.is_default)?.id || '',
+        apply_discount: false,
+        discount_percentage: 0
       })
       setInvoiceItems([])
     }
@@ -497,7 +587,10 @@ export default function InvoicesComplete() {
       tax_rate: '18',
       include_tax: true,
       initial_payment: 0,
-      document_type_id: ''
+      document_type_id: '',
+      account_id: accounts.find(acc => acc.is_default)?.id || '',
+      apply_discount: false,
+      discount_percentage: 0
     })
     setInvoiceItems([])
     setShowAddItem(false)
@@ -557,8 +650,9 @@ export default function InvoicesComplete() {
     const form = new FormData(e.currentTarget)
     const amount = parseFloat(form.get('amount') as string)
     const payment_date = form.get('payment_date') as string
+    const account_id = form.get('account_id') as string
 
-    if (!selectedInvoice || !organizationId || !amount || !payment_date) {
+    if (!selectedInvoice || !organizationId || !amount || !payment_date || !account_id) {
       alert('Por favor complete todos los campos')
       return
     }
@@ -614,7 +708,8 @@ export default function InvoicesComplete() {
           client_id: selectedInvoice.client_id,
           amount,
           payment_date,
-          organization_id: organizationId
+          organization_id: organizationId,
+          account_id: account_id
         }
 
         console.log('Inserting payment:', paymentData)
@@ -772,7 +867,10 @@ export default function InvoicesComplete() {
       tax_rate: '18',
       include_tax: true,
       initial_payment: 0,
-      document_type_id: ''
+      document_type_id: '',
+      account_id: accounts.find(acc => acc.is_default)?.id || '',
+      apply_discount: false,
+      discount_percentage: 0
     });
 
     const itemsFromQuote = quoteData.items.map((item: any) => ({
@@ -809,21 +907,41 @@ export default function InvoicesComplete() {
 
       if (error) throw error;
 
-      const formattedItems = (items || []).map((item: any) => ({
+      // Validate that we have items
+      if (!items || items.length === 0) {
+        throw new Error('No se encontraron productos en esta factura');
+      }
+
+      const formattedItems = items.map((item: any) => ({
         product_name: item.description || item.products?.name || 'Producto no encontrado',
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.quantity * item.unit_price,
+        quantity: item.quantity || 0,
+        unit_price: item.unit_price || 0,
+        total: (item.quantity || 0) * (item.unit_price || 0),
       }));
 
+      // Ensure invoice has all required fields
       const invoiceForPdf = {
         ...invoice,
         client_name: client.name,
         client_email: client.email,
+        invoice_number: invoice.invoice_number || 'SIN-NUMERO',
+        issue_date: invoice.issue_date || new Date().toISOString().split('T')[0],
+        due_date: invoice.due_date || new Date().toISOString().split('T')[0],
+        subtotal: invoice.subtotal || 0,
+        tax: invoice.tax || 0,
+        total: invoice.total || 0,
       };
+
+      console.log('Generando PDF con datos:', {
+        organization: organization.name,
+        client: client.name,
+        invoice: invoiceForPdf.invoice_number,
+        itemsCount: formattedItems.length
+      });
 
       await generateInvoicePdf(organization, client, invoiceForPdf, formattedItems);
     } catch (err) {
+      console.error('Error completo al generar PDF:', err);
       const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
       alert(`Error al generar el PDF: ${errorMessage}`);
     } finally {
@@ -939,26 +1057,39 @@ export default function InvoicesComplete() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <SearchInput
+          placeholder="Buscar facturas por número, cliente, email o estado..."
+          onSearch={handleSearch}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Invoices Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Facturas</h2>
         </div>
         
-        {invoices.length === 0 ? (
+        {filteredInvoices.length === 0 ? (
           <div className="p-6 sm:p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-gray-500 mb-4">No hay facturas registradas</p>
-            <button
-              onClick={() => openModal()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-            >
-              Crear primera factura
-            </button>
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No se encontraron facturas que coincidan con la búsqueda' : 'No hay facturas registradas'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => openModal()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Crear primera factura
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -978,7 +1109,7 @@ export default function InvoicesComplete() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {invoices.map((invoice) => (
+                  {filteredInvoices.map((invoice) => (
                     <tr key={invoice.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {invoice.invoice_number}
@@ -1048,7 +1179,7 @@ export default function InvoicesComplete() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden divide-y divide-gray-200">
-              {invoices.map((invoice) => (
+              {filteredInvoices.map((invoice) => (
                 <div key={invoice.id} className="p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0">
@@ -1212,6 +1343,25 @@ export default function InvoicesComplete() {
                   </div>
                 </div>
 
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     Cuenta
+                   </label>
+                   <select
+                     name="account_id"
+                     value={formData.account_id}
+                     onChange={handleInputChange}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   >
+                     <option value="">Seleccionar cuenta</option>
+                     {accounts.map(account => (
+                       <option key={account.id} value={account.id}>
+                         {account.name} {account.is_default ? '(Default)' : ''}
+                       </option>
+                     ))}
+                   </select>
+                 </div>
+
                 {/* Tax Rate */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <div>
@@ -1241,6 +1391,39 @@ export default function InvoicesComplete() {
                     />
                     <label htmlFor="include_tax" className="ml-2 block text-sm text-gray-900">
                       Incluir ITBIS
+                    </label>
+                  </div>
+                </div>
+
+                {/* Discount Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Descuento (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="discount_percentage"
+                      value={formData.discount_percentage}
+                      onChange={handleInputChange}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      disabled={!formData.apply_discount}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="apply_discount"
+                      type="checkbox"
+                      name="apply_discount"
+                      checked={formData.apply_discount}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="apply_discount" className="ml-2 block text-sm text-gray-900">
+                      Aplicar descuento
                     </label>
                   </div>
                 </div>
@@ -1389,6 +1572,12 @@ export default function InvoicesComplete() {
                           <span>Subtotal:</span>
                           <span className="font-medium">{formatCurrency(calculateTotals().subtotal)}</span>
                         </div>
+                        {formData.apply_discount && (
+                          <div className="flex justify-between text-red-600">
+                            <span>Descuento ({formData.discount_percentage}%):</span>
+                            <span className="font-medium">-{formatCurrency(calculateTotals().discountAmount)}</span>
+                          </div>
+                        )}
                         {formData.include_tax && (
                           <div className="flex justify-between">
                             <span>Impuestos ({formData.tax_rate}%):</span>
@@ -1495,25 +1684,36 @@ export default function InvoicesComplete() {
               
               {/* Add/Edit Payment Form */}
               <form onSubmit={handleAddOrUpdatePayment} className="mb-6 bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
-                    <input type="number" name="amount" id="amount" required min="0.01" step="0.01" defaultValue={editingPayment?.amount} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
-                  <div>
-                    <label htmlFor="payment_date" className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                    <input type="date" name="payment_date" id="payment_date" required defaultValue={editingPayment?.payment_date || new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
-                  <div className="flex items-end space-x-2">
-                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                      {editingPayment ? 'Actualizar' : 'Agregar'}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
+                     <input type="number" name="amount" id="amount" required min="0.01" step="0.01" defaultValue={editingPayment?.amount} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                   </div>
+                   <div>
+                     <label htmlFor="payment_date" className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                     <input type="date" name="payment_date" id="payment_date" required defaultValue={editingPayment?.payment_date || new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                   </div>
+                   <div className="md:col-span-2">
+                     <label htmlFor="account_id" className="block text-sm font-medium text-gray-700 mb-1">Cuenta</label>
+                     <select name="account_id" id="account_id" required defaultValue={accounts.find(acc => acc.is_default)?.id || ''} className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                       <option value="">Seleccionar cuenta</option>
+                       {accounts.map(account => (
+                         <option key={account.id} value={account.id}>
+                           {account.name} {account.is_default ? '(Default)' : ''}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                </div>
+                <div className="flex items-end space-x-2 mt-4">
+                  <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    {editingPayment ? 'Actualizar' : 'Agregar'}
+                  </button>
+                  {editingPayment && (
+                    <button type="button" onClick={() => setEditingPayment(null)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                      Cancelar
                     </button>
-                    {editingPayment && (
-                      <button type="button" onClick={() => setEditingPayment(null)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
               </form>
 

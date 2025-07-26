@@ -24,13 +24,14 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-select', '@radix-ui/react-tabs', '@supabase/supabase-js'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   poweredByHeader: false,
   compress: true,
+  output: 'standalone',
 }
 
 module.exports = withPWA(nextConfig)

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2 } from 'lucide-react'
+import SearchInput from '@/components/ui/search-input'
 
 
 interface Product {
@@ -17,6 +18,8 @@ interface Product {
 
 export default function ProductsClient() {
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -80,11 +83,38 @@ export default function ProductsClient() {
 
       if (error) throw error
       setProducts(data || [])
+      setFilteredProducts(data || [])
     } catch (error) {
       setError('Error al cargar los productos.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar productos
+  const filterProducts = (query: string) => {
+    if (!query.trim()) {
+      setFilteredProducts(products)
+      return
+    }
+
+    const filtered = products.filter(product =>
+      product.name.toLowerCase().includes(query.toLowerCase()) ||
+      product.description?.toLowerCase().includes(query.toLowerCase()) ||
+      product.category?.toLowerCase().includes(query.toLowerCase())
+    )
+    
+    setFilteredProducts(filtered)
+  }
+
+  // Effect para manejar la búsqueda
+  useEffect(() => {
+    filterProducts(searchQuery)
+  }, [searchQuery, products])
+
+  // Función para manejar la búsqueda
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -214,26 +244,39 @@ export default function ProductsClient() {
         </button>
       </div>
 
+      {/* Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <SearchInput
+          placeholder="Buscar productos por nombre, descripción o categoría..."
+          onSearch={handleSearch}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Products Table */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Lista de Productos</h2>
         </div>
         
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <div className="p-6 sm:p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <p className="text-gray-500 mb-4">No hay productos registrados</p>
-            <button
-              onClick={() => openModal()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-            >
-              Crear primer producto
-            </button>
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No se encontraron productos que coincidan con la búsqueda' : 'No hay productos registrados'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => openModal()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Crear primer producto
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -250,7 +293,7 @@ export default function ProductsClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {product.name}
@@ -290,7 +333,7 @@ export default function ProductsClient() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden divide-y divide-gray-200">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div key={product.id} className="p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0">

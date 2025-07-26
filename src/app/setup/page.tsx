@@ -21,39 +21,6 @@ export default function SetupPage() {
       if (!user) throw new Error('Usuario no autenticado')
 
 
-      // First, ensure we have a profile by trying to get or create it
-      let profile = null
-      
-      // Try to get existing profile
-      const { data: existingProfile, error: getError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (existingProfile) {
-        profile = existingProfile
-      } else {
-        
-        // Try to create profile with minimal data
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
-            username: user.email?.split('@')[0] || 'usuario'
-          })
-          .select()
-          .single()
-
-        if (createError) {
-          // If creation fails, it might be due to RLS - let's continue anyway
-          // The trigger should handle this
-        } else {
-          profile = newProfile
-        }
-      }
-
       // Create organization
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
@@ -79,8 +46,7 @@ export default function SetupPage() {
         .eq('id', user.id)
 
       if (profileUpdateError) {
-        // This might fail if profile doesn't exist, but we can ignore it
-        // The organization is already created
+        throw new Error(`Error al actualizar el perfil: ${profileUpdateError.message}`)
       }
 
       router.push('/dashboard')

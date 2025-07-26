@@ -15,6 +15,12 @@ interface DashboardStats {
   totalClients: number
   totalInvoices: number
   totalQuotes: number
+  revenueTrend?: number
+  expensesTrend?: number
+  profitTrend?: number
+  clientsTrend?: number
+  invoicesTrend?: number
+  quotesTrend?: number
 }
 
 interface Activity {
@@ -35,6 +41,12 @@ export default function DashboardClient() {
     totalClients: 0,
     totalInvoices: 0,
     totalQuotes: 0,
+    revenueTrend: 0,
+    expensesTrend: 0,
+    profitTrend: 0,
+    clientsTrend: 0,
+    invoicesTrend: 0,
+    quotesTrend: 0,
   })
 
   const [activities, setActivities] = useState<Activity[]>([])
@@ -64,9 +76,20 @@ export default function DashboardClient() {
       console.log('Profile data:', profile);
 
       if (profile?.organization_id) {
-        const { data, error } = await supabase.rpc('get_dashboard_stats', {
+        // Try the new comparison function first
+        let { data, error } = await supabase.rpc('get_dashboard_comparison_stats', {
           org_id: profile.organization_id,
         });
+
+        // If the new function doesn't exist, fallback to the old one
+        if (error && error.message?.includes('function get_dashboard_comparison_stats')) {
+          console.log('Comparison function not available, falling back to basic stats');
+          const fallbackResult = await supabase.rpc('get_dashboard_stats', {
+            org_id: profile.organization_id,
+          });
+          data = fallbackResult.data;
+          error = fallbackResult.error;
+        }
 
         console.log('Dashboard stats:', { data, error });
 
@@ -80,6 +103,12 @@ export default function DashboardClient() {
             totalClients: 0,
             totalInvoices: 0,
             totalQuotes: 0,
+            revenueTrend: 0,
+            expensesTrend: 0,
+            profitTrend: 0,
+            clientsTrend: 0,
+            invoicesTrend: 0,
+            quotesTrend: 0,
           });
           
           // Set welcome activities for new organizations
@@ -119,6 +148,12 @@ export default function DashboardClient() {
           totalClients: data.totalClients || 0,
           totalInvoices: data.totalInvoices || 0,
           totalQuotes: data.totalQuotes || 0,
+          revenueTrend: data.revenueTrend || 0,
+          expensesTrend: data.expensesTrend || 0,
+          profitTrend: data.profitTrend || 0,
+          clientsTrend: data.clientsTrend || 0,
+          invoicesTrend: data.invoicesTrend || 0,
+          quotesTrend: data.quotesTrend || 0,
         });
         
         // Asegurarse de que `data.activities` sea un array antes de mapear
@@ -177,7 +212,7 @@ export default function DashboardClient() {
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {trend && (
+        {trend !== undefined && trend !== 0 && (
           <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
             {trend > 0 ? (
               <ArrowUpRight className="h-3 w-3 text-success-600" />
@@ -213,7 +248,7 @@ export default function DashboardClient() {
             value={formatCurrency(stats.totalRevenue)}
             icon={DollarSign}
             color="text-success-600"
-            trend={12}
+            trend={stats.revenueTrend}
             description="Ingresos del período actual"
           />
           <StatCard
@@ -221,7 +256,7 @@ export default function DashboardClient() {
             value={formatCurrency(stats.totalExpenses)}
             icon={TrendingDown}
             color="text-error-600"
-            trend={-5}
+            trend={stats.expensesTrend}
             description="Gastos y costos operativos"
           />
           <StatCard
@@ -229,16 +264,16 @@ export default function DashboardClient() {
             value={formatCurrency(stats.totalProfit)}
             icon={BarChart3}
             color="text-primary-600"
-            trend={18}
+            trend={stats.profitTrend}
             description="Beneficio después de gastos"
           />
           <StatCard
-            title="Clientes Activos"
+            title="Clientes Nuevos"
             value={stats.totalClients}
             icon={Users}
             color="text-purple-600"
-            trend={8}
-            description="Clientes con actividad reciente"
+            trend={stats.clientsTrend}
+            description="Nuevos clientes este mes"
           />
         </div>
 
@@ -250,13 +285,22 @@ export default function DashboardClient() {
                 <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600" />
                 Facturas
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Estado de facturación actual</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Facturas creadas este mes</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">{stats.totalInvoices}</div>
-              <p className="text-xs text-muted-foreground">
-                +12 nuevas este mes
-              </p>
+              {stats.invoicesTrend !== undefined && stats.invoicesTrend !== 0 && (
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                  {stats.invoicesTrend > 0 ? (
+                    <ArrowUpRight className="h-3 w-3 text-success-600" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3 text-error-600" />
+                  )}
+                  <span className={stats.invoicesTrend > 0 ? 'text-success-600' : 'text-error-600'}>
+                    {Math.abs(stats.invoicesTrend)}% desde el mes pasado
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -266,13 +310,22 @@ export default function DashboardClient() {
                 <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-warning-600" />
                 Cotizaciones
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Propuestas comerciales pendientes</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Cotizaciones creadas este mes</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">{stats.totalQuotes}</div>
-              <p className="text-xs text-muted-foreground">
-                85% tasa de conversión
-              </p>
+              {stats.quotesTrend !== undefined && stats.quotesTrend !== 0 && (
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                  {stats.quotesTrend > 0 ? (
+                    <ArrowUpRight className="h-3 w-3 text-success-600" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3 text-error-600" />
+                  )}
+                  <span className={stats.quotesTrend > 0 ? 'text-success-600' : 'text-error-600'}>
+                    {Math.abs(stats.quotesTrend)}% desde el mes pasado
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
