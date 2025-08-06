@@ -13,7 +13,10 @@ import {
   LogOut,
   ChevronLeft,
   Menu,
-  CreditCard
+  CreditCard,
+  TrendingUp,
+  Truck,
+  FileDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/ui/logo'
@@ -22,9 +25,12 @@ import { useState } from 'react'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clientes', href: '/clientes', icon: Users },
+  { name: 'Proveedores', href: '/proveedores', icon: Truck },
   { name: 'Facturas', href: '/facturas', icon: FileText },
+  { name: 'Cuentas por Pagar', href: '/cuentas-por-pagar', icon: FileDown },
   { name: 'Cotizaciones', href: '/cotizaciones', icon: Receipt },
   { name: 'Productos', href: '/productos', icon: Package },
+  { name: 'Ingresos', href: '/ingresos', icon: TrendingUp },
   { name: 'Gastos', href: '/gastos', icon: CreditCard },
 ]
 

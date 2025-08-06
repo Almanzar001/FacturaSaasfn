@@ -44,6 +44,7 @@ interface Organization {
   id: string
   name: string
   logo_url: string | null
+  digital_signature_url: string | null
   settings: {
     rnc?: string
     address?: string
@@ -615,16 +616,9 @@ export default function QuotesClient() {
         total: quote.total || 0,
       };
 
-      console.log('Generando PDF de cotización con datos:', {
-        organization: organization.name,
-        client: client.name,
-        quote: quoteForPdf.quote_number,
-        itemsCount: formattedItems.length
-      });
 
       await generateQuotePdf(organization, client, quoteForPdf, formattedItems);
     } catch (err) {
-      console.error('Error completo al generar PDF de cotización:', err);
       const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
       alert(`Error al generar el PDF: ${errorMessage}`);
     } finally {

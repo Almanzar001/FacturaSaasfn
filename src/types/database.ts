@@ -81,6 +81,7 @@ export interface Database {
           updated_at: string
           owner_id: string
           settings: Json
+          digital_signature_url: string | null
         }
         Insert: {
           id?: string
@@ -89,6 +90,7 @@ export interface Database {
           updated_at?: string
           owner_id: string
           settings?: Json
+          digital_signature_url?: string | null
         }
         Update: {
           id?: string
@@ -97,6 +99,7 @@ export interface Database {
           updated_at?: string
           owner_id?: string
           settings?: Json
+          digital_signature_url?: string | null
         }
       }
       clients: {
@@ -134,6 +137,50 @@ export interface Database {
           updated_at?: string
         }
       }
+      providers: {
+        Row: {
+          id: string
+          name: string
+          email: string | null
+          phone: string | null
+          address: string | null
+          rnc: string | null
+          contact_person: string | null
+          payment_terms: string | null
+          notes: string | null
+          organization_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          rnc?: string | null
+          contact_person?: string | null
+          payment_terms?: string | null
+          notes?: string | null
+          organization_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          rnc?: string | null
+          contact_person?: string | null
+          payment_terms?: string | null
+          notes?: string | null
+          organization_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       products: {
         Row: {
           id: string
@@ -162,6 +209,106 @@ export interface Database {
           price?: number
           category?: string | null
           organization_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      provider_bills: {
+        Row: {
+          id: string
+          organization_id: string
+          provider_id: string
+          account_id: string | null
+          bill_number: string
+          reference_number: string | null
+          subtotal: number
+          tax: number
+          total: number
+          balance: number
+          status: string
+          due_date: string
+          bill_date: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          provider_id: string
+          account_id?: string | null
+          bill_number: string
+          reference_number?: string | null
+          subtotal?: number
+          tax?: number
+          total?: number
+          balance?: number
+          status?: string
+          due_date: string
+          bill_date?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          provider_id?: string
+          account_id?: string | null
+          bill_number?: string
+          reference_number?: string | null
+          subtotal?: number
+          tax?: number
+          total?: number
+          balance?: number
+          status?: string
+          due_date?: string
+          bill_date?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      provider_payments: {
+        Row: {
+          id: string
+          organization_id: string
+          provider_bill_id: string
+          provider_id: string
+          account_id: string | null
+          amount: number
+          payment_date: string
+          payment_method: string | null
+          reference_number: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          provider_bill_id: string
+          provider_id: string
+          account_id?: string | null
+          amount: number
+          payment_date?: string
+          payment_method?: string | null
+          reference_number?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          provider_bill_id?: string
+          provider_id?: string
+          account_id?: string | null
+          amount?: number
+          payment_date?: string
+          payment_method?: string | null
+          reference_number?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -431,6 +578,44 @@ export interface Database {
           prefix?: string
           sequence_next_value?: number
           is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      general_income: {
+        Row: {
+          id: string
+          organization_id: string
+          account_id: string
+          description: string
+          amount: number
+          category: string
+          income_date: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          account_id: string
+          description: string
+          amount: number
+          category: string
+          income_date: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          account_id?: string
+          description?: string
+          amount?: number
+          category?: string
+          income_date?: string
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }

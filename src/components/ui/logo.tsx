@@ -56,7 +56,7 @@ export function Logo({ className, size = 'md', showText = true, collapsed = fals
         }
       }
     } catch (error) {
-      console.error('Error fetching organization:', error)
+      // Handle error silently
     } finally {
       setLoading(false)
     }

@@ -50,7 +50,6 @@ export default function TeamMembers({ members, invitations, organizationId, orga
 
     setIsSubmitting(true)
     try {
-      console.log('Enviando invitación:', { organizationId, inviteEmail, inviteRole })
       
       const { data: token, error: rpcError } = await supabase.rpc('invite_user_to_organization', {
         p_organization_id: organizationId,
@@ -58,10 +57,8 @@ export default function TeamMembers({ members, invitations, organizationId, orga
         p_role: inviteRole,
       })
 
-      console.log('Respuesta RPC:', { token, rpcError })
 
       if (rpcError) {
-        console.error('Error RPC detallado:', rpcError)
         throw new Error(`Error en la base de datos: ${rpcError.message || rpcError.details || JSON.stringify(rpcError)}`)
       }
 

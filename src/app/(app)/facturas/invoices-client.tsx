@@ -33,6 +33,7 @@ interface Organization {
   id: string
   name: string
   logo_url: string | null
+  digital_signature_url: string | null
   settings: {
     rnc?: string
     address?: string
@@ -367,6 +368,10 @@ export default function InvoicesComplete() {
       alert('Debe agregar al menos un producto a la factura')
       return
     }
+    if (!formData.account_id) {
+      alert('Debe seleccionar una cuenta para la factura')
+      return
+    }
 
     try {
       const { subtotal, discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals()
@@ -652,8 +657,16 @@ export default function InvoicesComplete() {
     const payment_date = form.get('payment_date') as string
     const account_id = form.get('account_id') as string
 
-    if (!selectedInvoice || !organizationId || !amount || !payment_date || !account_id) {
-      alert('Por favor complete todos los campos')
+    if (!selectedInvoice || !organizationId) {
+      alert('Error: No se encontró la factura o la organización')
+      return
+    }
+    if (!amount || !payment_date) {
+      alert('Por favor complete el monto y la fecha de pago')
+      return
+    }
+    if (!account_id) {
+      alert('Debe seleccionar una cuenta para el pago')
       return
     }
 
@@ -663,14 +676,6 @@ export default function InvoicesComplete() {
       return
     }
 
-    // Log payment data for debugging
-    console.log('Processing payment:', {
-      selectedInvoice: selectedInvoice.id,
-      organizationId,
-      amount,
-      payment_date,
-      editingPayment: editingPayment?.id
-    })
 
     // Show loading state
     const submitButton = e.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement
@@ -685,7 +690,6 @@ export default function InvoicesComplete() {
 
       if (editingPayment) {
         // Update existing payment
-        console.log('Updating payment:', editingPayment.id)
         const { data, error } = await supabase
           .from('payments')
           .update({ amount, payment_date })
@@ -694,12 +698,10 @@ export default function InvoicesComplete() {
           .single()
         
         if (error) {
-          console.error('Error updating payment:', error)
           throw new Error(`Error al actualizar el pago: ${error.message}`)
         }
         
         paymentResult = data
-        console.log('Payment updated successfully:', paymentResult)
         setEditingPayment(null)
       } else {
         // Add new payment
@@ -712,7 +714,6 @@ export default function InvoicesComplete() {
           account_id: account_id
         }
 
-        console.log('Inserting payment:', paymentData)
         
         const { data, error } = await supabase
           .from('payments')
@@ -721,12 +722,10 @@ export default function InvoicesComplete() {
           .single()
         
         if (error) {
-          console.error('Error inserting payment:', error)
           throw new Error(`Error al guardar el pago: ${error.message}`)
         }
         
         paymentResult = data
-        console.log('Payment inserted successfully:', paymentResult)
         
         // Immediately update the payments list with the new payment
         if (paymentResult) {
@@ -743,12 +742,10 @@ export default function InvoicesComplete() {
       await new Promise(resolve => setTimeout(resolve, 500))
       
       // Refetch invoices to get updated balance (the trigger should have updated it)
-      console.log('Refetching invoices after payment operation...')
       await fetchInvoices(organizationId)
       
       // If we're not editing, refetch payments to ensure we have the latest data
       if (!editingPayment && selectedInvoice) {
-        console.log('Refetching payments for invoice:', selectedInvoice.id)
         const { data: updatedPayments, error: paymentsError } = await supabase
           .from('payments')
           .select('*')
@@ -756,10 +753,8 @@ export default function InvoicesComplete() {
           .order('payment_date', { ascending: false })
         
         if (paymentsError) {
-          console.error('Error fetching updated payments:', paymentsError)
         } else {
           setPayments(updatedPayments || [])
-          console.log('Updated payments:', updatedPayments)
         }
       }
       
@@ -780,7 +775,6 @@ export default function InvoicesComplete() {
       }, 3000)
       
     } catch (error) {
-      console.error('Error al guardar el pago:', error)
       
       // Show more specific error message
       let errorMessage = 'Error al guardar el pago. Por favor intente de nuevo.'
@@ -844,7 +838,6 @@ export default function InvoicesComplete() {
         }, 3000)
         
       } catch (error) {
-        console.error('Error al eliminar el pago:', error)
         alert('Error al eliminar el pago. Por favor intente de nuevo.')
       }
     }
@@ -932,16 +925,8 @@ export default function InvoicesComplete() {
         total: invoice.total || 0,
       };
 
-      console.log('Generando PDF con datos:', {
-        organization: organization.name,
-        client: client.name,
-        invoice: invoiceForPdf.invoice_number,
-        itemsCount: formattedItems.length
-      });
-
       await generateInvoicePdf(organization, client, invoiceForPdf, formattedItems);
     } catch (err) {
-      console.error('Error completo al generar PDF:', err);
       const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
       alert(`Error al generar el PDF: ${errorMessage}`);
     } finally {
@@ -1345,12 +1330,13 @@ export default function InvoicesComplete() {
 
                  <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                     Cuenta
+                     Cuenta *
                    </label>
                    <select
                      name="account_id"
                      value={formData.account_id}
                      onChange={handleInputChange}
+                     required
                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                    >
                      <option value="">Seleccionar cuenta</option>
@@ -1694,7 +1680,7 @@ export default function InvoicesComplete() {
                      <input type="date" name="payment_date" id="payment_date" required defaultValue={editingPayment?.payment_date || new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                    </div>
                    <div className="md:col-span-2">
-                     <label htmlFor="account_id" className="block text-sm font-medium text-gray-700 mb-1">Cuenta</label>
+                     <label htmlFor="account_id" className="block text-sm font-medium text-gray-700 mb-1">Cuenta *</label>
                      <select name="account_id" id="account_id" required defaultValue={accounts.find(acc => acc.is_default)?.id || ''} className="w-full px-3 py-2 border border-gray-300 rounded-md">
                        <option value="">Seleccionar cuenta</option>
                        {accounts.map(account => (

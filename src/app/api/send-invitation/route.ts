@@ -36,7 +36,6 @@ export async function POST(request: Request) {
     // Construir la URL de invitación
     const invitationUrl = `${appUrl}/accept-invitation?token=${token}`
     
-    console.log('URL de invitación generada:', invitationUrl)
 
     const { data, error } = await resend.emails.send({
       from: 'FacturaSaaS <noreply@fu-app.com>',

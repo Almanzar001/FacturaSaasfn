@@ -2,6 +2,33 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 
+// Helper function to load image as base64 with dimensions
+const loadImageAsBase64 = async (url: string): Promise<{dataURL: string, width: number, height: number}> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('No se pudo crear el contexto del canvas'));
+        return;
+      }
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL('image/png');
+      resolve({
+        dataURL,
+        width: img.width,
+        height: img.height
+      });
+    };
+    img.onerror = () => reject(new Error('Error al cargar la imagen'));
+    img.src = url;
+  });
+};
+
 // Extend jsPDF with autoTable properties
 interface jsPDFWithAutoTable extends jsPDF {
   lastAutoTable?: {
@@ -14,6 +41,7 @@ interface Organization {
   id: string
   name: string
   logo_url: string | null
+  digital_signature_url: string | null
   settings: {
     rnc?: string
     address?: string
@@ -160,7 +188,7 @@ export const generateInvoicePdf = async (
           reader.readAsDataURL(blob);
         });
       } catch (error) {
-        console.warn('Error loading logo:', error);
+        // Silently ignore logo loading errors
       }
     }
 
@@ -375,6 +403,35 @@ export const generateInvoicePdf = async (
     doc.line(15, footerY, 80, footerY);
     doc.setFontSize(8);
     doc.text('ELABORADO POR', 35, footerY + 4);
+    
+    // Agregar firma digital si existe
+    if (organization.digital_signature_url) {
+      try {
+        const signatureData = await loadImageAsBase64(organization.digital_signature_url);
+        
+        // Calcular dimensiones manteniendo proporción
+        const maxWidth = 50;  // Ancho máximo en mm
+        const maxHeight = 12; // Altura máxima en mm
+        
+        const originalAspectRatio = signatureData.width / signatureData.height;
+        let signatureWidth = maxWidth;
+        let signatureHeight = maxWidth / originalAspectRatio;
+        
+        // Si la altura calculada excede el máximo, ajustar por altura
+        if (signatureHeight > maxHeight) {
+          signatureHeight = maxHeight;
+          signatureWidth = maxHeight * originalAspectRatio;
+        }
+        
+        // Centrar la firma en el área disponible (65mm de ancho)
+        const signatureX = 15 + (65 - signatureWidth) / 2;
+        const signatureY = footerY - signatureHeight - 2;
+        
+        doc.addImage(signatureData.dataURL, 'PNG', signatureX, signatureY, signatureWidth, signatureHeight);
+      } catch (error) {
+        // Silently ignore signature loading errors
+      }
+    }
 
     // Aceptada
     doc.line(90, footerY, 155, footerY);
@@ -386,8 +443,7 @@ export const generateInvoicePdf = async (
 
     doc.save(`Factura-${invoice.invoice_number || 'sin-numero'}.pdf`);
   } catch (error) {
-    console.error('Error en generateInvoicePdf:', error);
-    console.error('Datos recibidos:', { organization, client, invoice, items });
+    // Error silently handled
     throw new Error(`Error al generar PDF de factura: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
@@ -471,7 +527,7 @@ export const generateQuotePdf = async (
           reader.readAsDataURL(blob);
         });
       } catch (error) {
-        console.warn('Error loading logo:', error);
+        // Silently ignore logo loading errors
       }
     }
 
@@ -643,6 +699,35 @@ export const generateQuotePdf = async (
     doc.line(15, footerY, 80, footerY);
     doc.setFontSize(8);
     doc.text('ELABORADO POR', 35, footerY + 4);
+    
+    // Agregar firma digital si existe
+    if (organization.digital_signature_url) {
+      try {
+        const signatureData = await loadImageAsBase64(organization.digital_signature_url);
+        
+        // Calcular dimensiones manteniendo proporción
+        const maxWidth = 50;  // Ancho máximo en mm
+        const maxHeight = 12; // Altura máxima en mm
+        
+        const originalAspectRatio = signatureData.width / signatureData.height;
+        let signatureWidth = maxWidth;
+        let signatureHeight = maxWidth / originalAspectRatio;
+        
+        // Si la altura calculada excede el máximo, ajustar por altura
+        if (signatureHeight > maxHeight) {
+          signatureHeight = maxHeight;
+          signatureWidth = maxHeight * originalAspectRatio;
+        }
+        
+        // Centrar la firma en el área disponible (65mm de ancho)
+        const signatureX = 15 + (65 - signatureWidth) / 2;
+        const signatureY = footerY - signatureHeight - 2;
+        
+        doc.addImage(signatureData.dataURL, 'PNG', signatureX, signatureY, signatureWidth, signatureHeight);
+      } catch (error) {
+        // Silently ignore signature loading errors
+      }
+    }
 
     // Aceptada
     doc.line(90, footerY, 155, footerY);
@@ -654,8 +739,7 @@ export const generateQuotePdf = async (
 
     doc.save(`Cotizacion-${quote.quote_number || 'sin-numero'}.pdf`);
   } catch (error) {
-    console.error('Error en generateQuotePdf:', error);
-    console.error('Datos recibidos:', { organization, client, quote, items });
+    // Error silently handled
     throw new Error(`Error al generar PDF de cotización: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }

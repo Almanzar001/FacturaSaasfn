@@ -21,6 +21,7 @@ interface Organization {
   id: string
   name: string
   logo_url: string | null
+  digital_signature_url: string | null
   settings: {
     rnc?: string
     address?: string
@@ -83,6 +84,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
     phone: '',
     email: '',
     logo_url: '',
+    digital_signature_url: '',
     pdf_footer_message: ''
   })
 
@@ -156,6 +158,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
         phone: data.settings?.phone || '',
         email: data.settings?.email || '',
         logo_url: data.logo_url || '',
+        digital_signature_url: data.digital_signature_url || '',
         pdf_footer_message: data.settings?.pdf_footer_message || 'Gracias por su negocio.'
       })
     } catch (error) {
@@ -178,13 +181,11 @@ export default function SettingsClient({ user }: SettingsClientProps) {
 
   const fetchTeamData = async (orgId: string) => {
     try {
-      console.log('Fetching team data for org:', orgId)
       
       const { data, error } = await supabase.rpc('get_team_data', {
         p_organization_id: orgId,
       })
 
-      console.log('Team data response:', { data, error })
 
       if (error) throw error
 
@@ -198,7 +199,6 @@ export default function SettingsClient({ user }: SettingsClientProps) {
         setInvitations([])
       }
     } catch (error) {
-      console.error('Error fetching team data:', error)
       setTeamMembers([])
       setInvitations([])
     }
@@ -225,7 +225,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
     if (!organizationId) return
 
     try {
-      const { name, logo_url, ...settings } = orgFormData
+      const { name, logo_url, digital_signature_url, ...settings } = orgFormData
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .update({ name, settings })
@@ -286,6 +286,40 @@ export default function SettingsClient({ user }: SettingsClientProps) {
       alert('Logo subido con éxito')
     } catch (error) {
       alert('Error al subir el logo')
+    }
+  }
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !organizationId) {
+      return
+    }
+
+    const file = e.target.files[0]
+    const fileExt = file.name.split('.').pop()
+    const filePath = `${organizationId}/${Math.random()}.${fileExt}`
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('signatures')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('signatures')
+        .getPublicUrl(filePath)
+
+      const publicUrl = data.publicUrl
+
+      await supabase
+        .from('organizations')
+        .update({ digital_signature_url: publicUrl })
+        .eq('id', organizationId)
+
+      setOrgFormData(prev => ({ ...prev, digital_signature_url: publicUrl }))
+      alert('Firma digital subida con éxito')
+    } catch (error) {
+      alert('Error al subir la firma digital')
     }
   }
 
@@ -455,6 +489,14 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                     <div className="flex items-center gap-4">
                       {orgFormData.logo_url && <img src={orgFormData.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded-md border" />}
                       <Input type="file" onChange={handleLogoUpload} accept="image/*" className="max-w-xs" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Firma Digital</label>
+                    <p className="text-sm text-gray-500 mb-2">Esta firma aparecerá en la sección "Elaborado por" de los PDFs</p>
+                    <div className="flex items-center gap-4">
+                      {orgFormData.digital_signature_url && <img src={orgFormData.digital_signature_url} alt="Firma Digital" className="h-16 w-32 object-contain rounded-md border bg-white p-2" />}
+                      <Input type="file" onChange={handleSignatureUpload} accept="image/*" className="max-w-xs" />
                     </div>
                   </div>
                   <div className="flex justify-end">
