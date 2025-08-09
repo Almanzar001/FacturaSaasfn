@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, Calendar } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
+import { getTodayDateString } from '@/lib/utils'
 
 interface Expense {
   id: string
@@ -31,7 +32,7 @@ export default function ExpensesClient() {
     description: '',
     amount: '',
     category: '',
-    expense_date: new Date().toISOString().split('T')[0],
+    expense_date: getTodayDateString(),
     notes: ''
   })
 
@@ -180,7 +181,7 @@ export default function ExpensesClient() {
         description: '',
         amount: '',
         category: '',
-        expense_date: new Date().toISOString().split('T')[0],
+        expense_date: getTodayDateString(),
         notes: ''
       })
     }
@@ -194,7 +195,7 @@ export default function ExpensesClient() {
       description: '',
       amount: '',
       category: '',
-      expense_date: new Date().toISOString().split('T')[0],
+      expense_date: getTodayDateString(),
       notes: ''
     })
   }

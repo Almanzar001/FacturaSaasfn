@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, FileDown, CreditCard, Calendar, Eye, DollarSign, CheckCircle } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
+import { getTodayDateString } from '@/lib/utils'
 
 interface Provider {
   id: string
@@ -83,13 +84,13 @@ export default function AccountsPayableClient() {
     tax: '',
     total: '',
     due_date: '',
-    bill_date: new Date().toISOString().split('T')[0],
+    bill_date: '',
     notes: ''
   })
 
   const [paymentFormData, setPaymentFormData] = useState({
     amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
+    payment_date: '',
     payment_method: '',
     reference_number: '',
     account_id: '',
@@ -97,6 +98,13 @@ export default function AccountsPayableClient() {
   })
 
   const supabase = createClient()
+
+  // Initialize dates after component mounts
+  useEffect(() => {
+    const today = getTodayDateString()
+    setBillFormData(prev => ({ ...prev, bill_date: today }))
+    setPaymentFormData(prev => ({ ...prev, payment_date: today }))
+  }, [])
 
   const initialize = async () => {
     setLoading(true);
@@ -359,7 +367,7 @@ export default function AccountsPayableClient() {
         tax: '',
         total: '',
         due_date: '',
-        bill_date: new Date().toISOString().split('T')[0],
+        bill_date: getTodayDateString(),
         notes: ''
       })
     }
@@ -375,7 +383,7 @@ export default function AccountsPayableClient() {
     setSelectedBillForPayment(bill)
     setPaymentFormData({
       amount: bill.balance.toString(),
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: getTodayDateString(),
       payment_method: '',
       reference_number: '',
       account_id: accounts.find(a => a.is_default)?.id || '',

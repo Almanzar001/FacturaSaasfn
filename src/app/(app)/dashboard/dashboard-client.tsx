@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { BarChart3, Users, DollarSign, TrendingUp, TrendingDown, FileText, Receipt, ArrowUpRight, ArrowDownRight, Package, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { getTodayDateString } from '@/lib/utils'
 
 
 interface DashboardStats {
@@ -130,7 +131,7 @@ export default function DashboardClient() {
 
       if (profile?.organization_id) {
         // Definir fecha actual para limitar fechas futuras
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayDateString();
         const endDateString = endDate.split('T')[0];
         const effectiveEndDate = endDateString > today ? today : endDateString;
         

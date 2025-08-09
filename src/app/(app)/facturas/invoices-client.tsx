@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { generateInvoicePdf } from '@/lib/pdfGenerator'
 import { Edit, Trash2, FileText, DollarSign } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
+import { getTodayDateString, getDateWithDaysAdded } from '@/lib/utils'
 
 interface Invoice {
   id: string
@@ -99,6 +100,7 @@ export default function InvoicesComplete() {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [error, setError] = useState<string | null>(null)
+
   const [showModal, setShowModal] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
@@ -109,6 +111,23 @@ export default function InvoicesComplete() {
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const [showInitialPayment, setShowInitialPayment] = useState(false)
   const [nextInvoiceNumberPreview, setNextInvoiceNumberPreview] = useState<string | null>(null)
+  
+  // Estados para crear cliente y producto
+  const [showCreateClient, setShowCreateClient] = useState(false)
+  const [showCreateProduct, setShowCreateProduct] = useState(false)
+  const [newClientData, setNewClientData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    rnc: ''
+  })
+  const [newProductData, setNewProductData] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    category: ''
+  })
   
   const [formData, setFormData] = useState({
     client_id: '',
@@ -326,6 +345,121 @@ export default function InvoicesComplete() {
       }
     } catch (error) {
       // Do not alert here, as it might be annoying for the user
+    }
+  }
+
+  // Funciones para crear cliente y producto
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!organizationId || !newClientData.name.trim() || !newClientData.email.trim()) {
+      alert('Nombre y email son requeridos')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          ...newClientData,
+          organization_id: organizationId
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Actualizar la lista de clientes
+      await fetchClients(organizationId)
+      
+      // Seleccionar automáticamente el nuevo cliente
+      setFormData(prev => ({ ...prev, client_id: data.id }))
+      
+      // Cerrar modal y limpiar datos
+      setShowCreateClient(false)
+      setNewClientData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        rnc: ''
+      })
+
+      // Mostrar mensaje de éxito
+      const notification = document.createElement('div')
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
+      notification.textContent = 'Cliente creado exitosamente'
+      document.body.appendChild(notification)
+      
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      }, 3000)
+
+    } catch (error) {
+      alert('Error al crear el cliente. Por favor intente de nuevo.')
+    }
+  }
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!organizationId || !newProductData.name.trim()) {
+      alert('El nombre del producto es requerido')
+      return
+    }
+
+    if (newProductData.price < 0) {
+      alert('El precio debe ser mayor o igual a 0')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          ...newProductData,
+          organization_id: organizationId
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Actualizar la lista de productos
+      await fetchProducts(organizationId)
+      
+      // Seleccionar automáticamente el nuevo producto en el formulario de agregar item
+      setNewItem(prev => ({
+        ...prev,
+        product_id: data.id,
+        unit_price: newProductData.price
+      }))
+      
+      // Cerrar modal y limpiar datos
+      setShowCreateProduct(false)
+      setNewProductData({
+        name: '',
+        description: '',
+        price: 0,
+        category: ''
+      })
+
+      // Mostrar mensaje de éxito
+      const notification = document.createElement('div')
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
+      notification.textContent = 'Producto creado exitosamente'
+      document.body.appendChild(notification)
+      
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      }, 3000)
+
+    } catch (error) {
+      alert('Error al crear el producto. Por favor intente de nuevo.')
     }
   }
  
@@ -559,14 +693,13 @@ export default function InvoicesComplete() {
       }
     } else {
       setEditingInvoice(null)
-      const today = new Date().toISOString().split('T')[0]
-      const dueDate = new Date()
-      dueDate.setDate(dueDate.getDate() + 30)
+      const today = getTodayDateString()
+      const dueDate = getDateWithDaysAdded(30)
       
       setFormData({
         client_id: '',
         issue_date: today,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: dueDate,
         notes: '',
         tax_rate: '18',
         include_tax: true,
@@ -848,14 +981,13 @@ export default function InvoicesComplete() {
   }
 
   const openModalWithQuoteData = (quoteData: any) => {
-    const today = new Date().toISOString().split('T')[0];
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    const today = getTodayDateString();
+    const dueDate = getDateWithDaysAdded(30);
 
     setFormData({
       client_id: quoteData.client_id,
       issue_date: today,
-      due_date: dueDate.toISOString().split('T')[0],
+      due_date: dueDate,
       notes: quoteData.notes || '',
       tax_rate: '18',
       include_tax: true,
@@ -918,8 +1050,8 @@ export default function InvoicesComplete() {
         client_name: client.name,
         client_email: client.email,
         invoice_number: invoice.invoice_number || 'SIN-NUMERO',
-        issue_date: invoice.issue_date || new Date().toISOString().split('T')[0],
-        due_date: invoice.due_date || new Date().toISOString().split('T')[0],
+        issue_date: invoice.issue_date || getTodayDateString(),
+        due_date: invoice.due_date || getTodayDateString(),
         subtotal: invoice.subtotal || 0,
         tax: invoice.tax || 0,
         total: invoice.total || 0,
@@ -1258,20 +1390,32 @@ export default function InvoicesComplete() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Cliente *
                     </label>
-                    <select
-                      name="client_id"
-                      value={formData.client_id}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar cliente</option>
-                      {clients.map(client => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex gap-2">
+                      <select
+                        name="client_id"
+                        value={formData.client_id}
+                        onChange={handleInputChange}
+                        required
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Seleccionar cliente</option>
+                        {clients.map(client => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateClient(true)}
+                        className="flex-shrink-0 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                        title="Crear nuevo cliente"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1435,18 +1579,30 @@ export default function InvoicesComplete() {
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Producto
                           </label>
-                          <select
-                            value={newItem.product_id}
-                            onChange={(e) => handleProductSelect(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Seleccionar producto</option>
-                            {products.map(product => (
-                              <option key={product.id} value={product.id}>
-                                {product.name} - {formatCurrency(product.price)}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex gap-2">
+                            <select
+                              value={newItem.product_id}
+                              onChange={(e) => handleProductSelect(e.target.value)}
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Seleccionar producto</option>
+                              {products.map(product => (
+                                <option key={product.id} value={product.id}>
+                                  {product.name} - {formatCurrency(product.price)}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setShowCreateProduct(true)}
+                              className="flex-shrink-0 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                              title="Crear nuevo producto"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
 
                         <div>
@@ -1677,7 +1833,7 @@ export default function InvoicesComplete() {
                    </div>
                    <div>
                      <label htmlFor="payment_date" className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                     <input type="date" name="payment_date" id="payment_date" required defaultValue={editingPayment?.payment_date || new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                     <input type="date" name="payment_date" id="payment_date" required defaultValue={editingPayment?.payment_date || getTodayDateString()} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                    </div>
                    <div className="md:col-span-2">
                      <label htmlFor="account_id" className="block text-sm font-medium text-gray-700 mb-1">Cuenta *</label>
@@ -1735,6 +1891,204 @@ export default function InvoicesComplete() {
                   Cerrar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Client Modal */}
+      {showCreateClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Crear Nuevo Cliente</h3>
+              
+              <form onSubmit={handleCreateClient} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientData.name}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nombre del cliente"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newClientData.email}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="email@ejemplo.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono
+                  </label>
+                  <input
+                    type="tel"
+                    value={newClientData.phone}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="(809) 123-4567"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dirección
+                  </label>
+                  <textarea
+                    value={newClientData.address}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                    placeholder="Dirección completa"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    RNC
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientData.rnc}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, rnc: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="123-45678-9"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateClient(false)
+                      setNewClientData({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        address: '',
+                        rnc: ''
+                      })
+                    }}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Crear Cliente
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Product Modal */}
+      {showCreateProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Crear Nuevo Producto</h3>
+              
+              <form onSubmit={handleCreateProduct} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    value={newProductData.name}
+                    onChange={(e) => setNewProductData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nombre del producto"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción
+                  </label>
+                  <textarea
+                    value={newProductData.description}
+                    onChange={(e) => setNewProductData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                    placeholder="Descripción del producto"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio *
+                  </label>
+                  <input
+                    type="number"
+                    value={newProductData.price}
+                    onChange={(e) => setNewProductData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={newProductData.category}
+                    onChange={(e) => setNewProductData(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Categoría del producto"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateProduct(false)
+                      setNewProductData({
+                        name: '',
+                        description: '',
+                        price: 0,
+                        category: ''
+                      })
+                    }}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Crear Producto
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

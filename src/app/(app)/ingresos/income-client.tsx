@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, TrendingUp, Wallet } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
+import { getTodayDateString } from '@/lib/utils'
 
 interface GeneralIncome {
   id: string
@@ -44,7 +45,7 @@ export default function IncomeClient() {
     amount: '',
     category: '',
     account_id: '',
-    income_date: new Date().toISOString().split('T')[0],
+    income_date: getTodayDateString(),
     notes: ''
   })
 
@@ -220,7 +221,7 @@ export default function IncomeClient() {
         amount: '',
         category: '',
         account_id: defaultAccount?.id || '',
-        income_date: new Date().toISOString().split('T')[0],
+        income_date: getTodayDateString(),
         notes: ''
       })
     }
@@ -236,7 +237,7 @@ export default function IncomeClient() {
       amount: '',
       category: '',
       account_id: defaultAccount?.id || '',
-      income_date: new Date().toISOString().split('T')[0],
+      income_date: getTodayDateString(),
       notes: ''
     })
   }
@@ -508,7 +509,7 @@ export default function IncomeClient() {
                     name="income_date" 
                     value={formData.income_date} 
                     onChange={handleInputChange} 
-                    max={new Date().toISOString().split('T')[0]}
+                    max={getTodayDateString()}
                     required 
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   />
