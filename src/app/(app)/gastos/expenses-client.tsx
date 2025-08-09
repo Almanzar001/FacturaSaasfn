@@ -5,7 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, Calendar } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
-import { getTodayDateString } from '@/lib/utils'
+import { getTodayDateString, refreshDashboard } from '@/lib/utils'
 
 interface Expense {
   id: string
@@ -155,6 +155,9 @@ export default function ExpensesClient() {
 
       closeModal()
       fetchExpenses(organizationId)
+      
+      // Refresh dashboard to update recent activity
+      setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
       alert(`Error al guardar el gasto: ${(error as any).message}`)
     }
@@ -212,6 +215,9 @@ export default function ExpensesClient() {
 
         if (error) throw error
         fetchExpenses(organizationId)
+        
+        // Refresh dashboard to update recent activity
+        setTimeout(() => refreshDashboard(), 500)
       } catch (error) {
         alert(`Error al eliminar el gasto: ${(error as any).message}`)
       }

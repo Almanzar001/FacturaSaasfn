@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart3, Users, DollarSign, TrendingUp, TrendingDown, FileText, Receipt, ArrowUpRight, ArrowDownRight, Package, CreditCard } from 'lucide-react'
+import { BarChart3, Users, DollarSign, TrendingUp, TrendingDown, FileText, Receipt, ArrowUpRight, ArrowDownRight, Package, CreditCard, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getTodayDateString } from '@/lib/utils'
@@ -72,6 +72,8 @@ export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null)
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('thismonth')
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
   useEffect(() => {
     const initialize = async () => {
@@ -89,6 +91,34 @@ export default function DashboardClient() {
       fetchDashboardData(user);
     }
   }, [timeFilter])
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(() => {
+      fetchDashboardData(user, true); // Silent refresh
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [user, timeFilter])
+
+  // Manual refresh function
+  const handleRefresh = useCallback(async () => {
+    if (!user) return;
+    setRefreshing(true);
+    await fetchDashboardData(user);
+    setRefreshing(false);
+    setLastRefresh(new Date());
+  }, [user, timeFilter])
+
+  // Export refresh function for external use
+  useEffect(() => {
+    (window as any).refreshDashboard = handleRefresh;
+    return () => {
+      delete (window as any).refreshDashboard;
+    };
+  }, [handleRefresh])
 
   const getDateRange = (filter: TimeFilter) => {
     const now = new Date();
@@ -116,9 +146,11 @@ export default function DashboardClient() {
     };
   }
 
-  const fetchDashboardData = async (user: User) => {
+  const fetchDashboardData = async (user: User, silent: boolean = false) => {
     const supabase = createClient();
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     
     try {
       const { startDate, endDate } = getDateRange(timeFilter);
@@ -340,7 +372,9 @@ export default function DashboardClient() {
           error = directError;
           data = null;
         } finally {
-          setLoading(false);
+          if (!silent) {
+            setLoading(false);
+          }
         }
 
         if (error) {
@@ -521,11 +555,29 @@ export default function DashboardClient() {
   return (
     <div className="space-y-6">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Bienvenido de vuelta, {user?.user_metadata.full_name || user?.email}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Bienvenido de vuelta, {user?.user_metadata.full_name || user?.email}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Última actualización: {lastRefresh.toLocaleTimeString('es-DO', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </span>
+            <button
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Actualizando...' : 'Actualizar'}
+            </button>
+          </div>
         </div>
 
         {/* Time Filter Buttons */}
@@ -681,15 +733,27 @@ export default function DashboardClient() {
         {/* Recent Activity */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg">Actividad Reciente</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Últimas acciones realizadas en el sistema
-            </CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-base sm:text-lg">Actividad Reciente</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Últimas acciones realizadas en el sistema
+                </CardDescription>
+              </div>
+              {refreshing && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Actualizando...
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {activities.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No hay actividad reciente</p>
+                <p className="text-sm text-muted-foreground">
+                  {loading ? 'Cargando actividad reciente...' : 'No hay actividad reciente'}
+                </p>
               </div>
             ) : (
               activities.map((activity) => (

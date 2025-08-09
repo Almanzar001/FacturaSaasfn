@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { generateInvoicePdf } from '@/lib/pdfGenerator'
 import { Edit, Trash2, FileText, DollarSign } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
-import { getTodayDateString, getDateWithDaysAdded } from '@/lib/utils'
+import { getTodayDateString, getDateWithDaysAdded, refreshDashboard } from '@/lib/utils'
 
 interface Invoice {
   id: string
@@ -597,6 +597,9 @@ export default function InvoicesComplete() {
       closeModal()
       fetchInvoices(organizationId)
       fetchDocumentTypes(organizationId)
+      
+      // Refresh dashboard to update recent activity
+      setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
       alert('Error al guardar la factura')
     }
@@ -755,6 +758,9 @@ export default function InvoicesComplete() {
 
         if (error) throw error
         fetchInvoices(organizationId)
+        
+        // Refresh dashboard to update recent activity
+        setTimeout(() => refreshDashboard(), 500)
       } catch (error) {
         alert('Error al eliminar la factura')
       }
@@ -877,6 +883,9 @@ export default function InvoicesComplete() {
       // Refetch invoices to get updated balance (the trigger should have updated it)
       await fetchInvoices(organizationId)
       
+      // Refresh dashboard to update recent activity
+      setTimeout(() => refreshDashboard(), 500)
+      
       // If we're not editing, refetch payments to ensure we have the latest data
       if (!editingPayment && selectedInvoice) {
         const { data: updatedPayments, error: paymentsError } = await supabase
@@ -955,6 +964,9 @@ export default function InvoicesComplete() {
         // Refetch invoices to get updated balance
         if (organizationId) {
           await fetchInvoices(organizationId)
+          
+          // Refresh dashboard to update recent activity
+          setTimeout(() => refreshDashboard(), 500)
         }
         
         // Show success message

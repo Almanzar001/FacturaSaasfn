@@ -23,3 +23,10 @@ export function getDateWithDaysAdded(daysToAdd: number): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+// Helper function to refresh dashboard from other components
+export function refreshDashboard(): void {
+  if (typeof window !== 'undefined' && (window as any).refreshDashboard) {
+    (window as any).refreshDashboard();
+  }
+}

@@ -5,7 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, TrendingUp, Wallet } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
-import { getTodayDateString } from '@/lib/utils'
+import { getTodayDateString, refreshDashboard } from '@/lib/utils'
 
 interface GeneralIncome {
   id: string
@@ -192,6 +192,9 @@ export default function IncomeClient() {
         fetchIncomes(organizationId),
         fetchAccounts(organizationId) // Refrescar cuentas para ver balances actualizados
       ])
+      
+      // Refresh dashboard to update recent activity
+      setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
       alert(`Error al guardar el ingreso: ${(error as any).message}`)
     }
@@ -256,6 +259,9 @@ export default function IncomeClient() {
           fetchIncomes(organizationId),
           fetchAccounts(organizationId) // Refrescar cuentas para ver balances actualizados
         ])
+        
+        // Refresh dashboard to update recent activity
+        setTimeout(() => refreshDashboard(), 500)
       } catch (error) {
         alert(`Error al eliminar el ingreso: ${(error as any).message}`)
       }

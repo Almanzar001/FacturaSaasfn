@@ -9,7 +9,7 @@ import { generateQuotePdf } from '@/lib/pdfGenerator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { getTodayDateString, getDateWithDaysAdded } from '@/lib/utils'
+import { getTodayDateString, getDateWithDaysAdded, refreshDashboard } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import SearchInput from '@/components/ui/search-input'
 
@@ -484,6 +484,9 @@ export default function QuotesClient() {
 
       closeModal()
       fetchQuotes(organizationId)
+      
+      // Refresh dashboard to update recent activity
+      setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
       alert('Error al guardar la cotización')
     }
@@ -626,6 +629,9 @@ export default function QuotesClient() {
 
         if (error) throw error
         fetchQuotes(organizationId)
+        
+        // Refresh dashboard to update recent activity
+        setTimeout(() => refreshDashboard(), 500)
       } catch (error) {
         alert('Error al eliminar la cotización')
       }
