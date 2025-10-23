@@ -16,7 +16,8 @@ import {
   CreditCard,
   TrendingUp,
   Truck,
-  FileDown
+  FileDown,
+  BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/ui/logo'
@@ -24,6 +25,7 @@ import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Estadísticas', href: '/estadisticas', icon: BarChart3 },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Proveedores', href: '/proveedores', icon: Truck },
   { name: 'Facturas', href: '/facturas', icon: FileText },
