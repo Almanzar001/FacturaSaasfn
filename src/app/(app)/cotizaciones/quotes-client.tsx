@@ -383,33 +383,40 @@ export default function QuotesClient() {
 
   const generateQuoteNumber = async (orgId: string) => {
     try {
+      // Get all quote numbers for this organization and find the highest
       const { data, error } = await supabase
         .from('quotes')
         .select('quote_number')
         .eq('organization_id', orgId)
-        .order('quote_number', { ascending: false })
-        .limit(1)
-        .single()
+        .order('created_at', { ascending: false })
 
-      // 'PGRST116' means no rows were found, which is fine for the first quote.
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error
       }
 
-      if (!data) {
+      if (!data || data.length === 0) {
         return 'COT-00001'
       }
 
-      const lastNumberStr = data.quote_number.split('-').pop() || '0'
-      const lastNumber = parseInt(lastNumberStr, 10)
-      const nextNumber = lastNumber + 1
-      
+      // Find the highest number from existing quotes
+      let maxNumber = 0
+      data.forEach(quote => {
+        const numberStr = quote.quote_number.split('-').pop()
+        if (numberStr && !numberStr.startsWith('R')) {
+          const num = parseInt(numberStr, 10)
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num
+          }
+        }
+      })
+
+      const nextNumber = maxNumber + 1
       return `COT-${String(nextNumber).padStart(5, '0')}`
 
     } catch (err) {
-      // Fallback to a random number to avoid blocking the user.
-      const randomSuffix = Math.floor(Math.random() * 100000).toString().padStart(5, '0')
-      return `COT-R${randomSuffix}`
+      // Fallback to timestamp-based number to avoid collisions
+      const timestamp = Date.now().toString().slice(-5)
+      return `COT-T${timestamp}`
     }
   }
 
@@ -480,7 +487,10 @@ export default function QuotesClient() {
         .from('quote_items')
         .insert(itemsToInsert)
 
-      if (itemsError) throw itemsError
+      if (itemsError) {
+        console.error('Error inserting quote items:', itemsError)
+        throw itemsError
+      }
 
       closeModal()
       fetchQuotes(organizationId)
@@ -488,7 +498,9 @@ export default function QuotesClient() {
       // Refresh dashboard to update recent activity
       setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
-      alert('Error al guardar la cotización')
+      console.error('Full error details:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      alert(`Error al guardar la cotización: ${errorMessage}`)
     }
   }
 
