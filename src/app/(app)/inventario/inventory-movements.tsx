@@ -289,11 +289,20 @@ export default function InventoryMovements() {
 
       if (stockError) throw stockError
 
-      // Filtrar solo stocks de la organización del usuario
+      // Filtrar y transformar datos de stock
       const filteredStock = stockData?.filter(item => {
         const branch = Array.isArray(item.branch) ? item.branch[0] : item.branch
         return branch?.id // Solo mostrar items que tienen sucursal válida
-      }) || []
+      }).map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        min_stock: item.min_stock,
+        max_stock: item.max_stock,
+        cost_price: item.cost_price,
+        last_movement_date: item.last_movement_date,
+        product: Array.isArray(item.product) ? item.product[0] : item.product,
+        branch: Array.isArray(item.branch) ? item.branch[0] : item.branch
+      })) || []
 
       setStockItems(filteredStock as StockItem[])
 
