@@ -85,8 +85,8 @@ export default function InventoryMovements() {
   
   // Estados para filtros
   const [filters, setFilters] = useState({
-    branch_id: '',
-    movement_type: '',
+    branch_id: 'all',
+    movement_type: 'all',
     search: '',
     date_from: '',
     date_to: ''
@@ -184,11 +184,11 @@ export default function InventoryMovements() {
         .order('movement_date', { ascending: false })
 
       // Aplicar filtros
-      if (filters.branch_id) {
+      if (filters.branch_id && filters.branch_id !== 'all') {
         query = query.eq('branch_id', filters.branch_id)
       }
       
-      if (filters.movement_type) {
+      if (filters.movement_type && filters.movement_type !== 'all') {
         query = query.eq('movement_type', filters.movement_type)
       }
       
@@ -698,7 +698,7 @@ export default function InventoryMovements() {
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas las sucursales</SelectItem>
+                  <SelectItem value="all">Todas las sucursales</SelectItem>
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
@@ -715,7 +715,7 @@ export default function InventoryMovements() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los tipos</SelectItem>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
                   <SelectItem value="entrada">Entrada</SelectItem>
                   <SelectItem value="salida">Salida</SelectItem>
                   <SelectItem value="ajuste">Ajuste</SelectItem>
