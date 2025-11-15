@@ -53,6 +53,25 @@ interface Movement {
   }[] | null
 }
 
+interface StockItem {
+  id: string
+  quantity: number
+  min_stock: number | null
+  max_stock: number | null
+  cost_price: number
+  last_movement_date: string | null
+  product: {
+    id: string
+    name: string
+    sku: string | null
+    unit_of_measure: string | null
+  }
+  branch: {
+    id: string
+    name: string
+  }
+}
+
 interface PurchaseItem {
   product_id: string
   quantity: number
@@ -63,8 +82,10 @@ export default function InventoryMovements() {
   const [products, setProducts] = useState<Product[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [movements, setMovements] = useState<Movement[]>([])
+  const [stockItems, setStockItems] = useState<StockItem[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMovements, setLoadingMovements] = useState(false)
+  const [loadingStock, setLoadingStock] = useState(false)
   
   // Estados para registro de compras
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
@@ -101,6 +122,7 @@ export default function InventoryMovements() {
 
   useEffect(() => {
     loadMovements()
+    loadCurrentStock()
   }, [filters])
 
   const loadInitialData = async () => {
@@ -230,6 +252,62 @@ export default function InventoryMovements() {
     }
   }
 
+  const loadCurrentStock = async () => {
+    setLoadingStock(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.organization_id) return
+
+      let query = supabase
+        .from('inventory_stock')
+        .select(`
+          id,
+          quantity,
+          min_stock,
+          max_stock,
+          cost_price,
+          last_movement_date,
+          product:products(id, name, sku, unit_of_measure),
+          branch:branches(id, name)
+        `)
+        .order('last_movement_date', { ascending: false })
+
+      // Aplicar filtro de sucursal si está seleccionado
+      if (filters.branch_id && filters.branch_id !== 'all') {
+        query = query.eq('branch_id', filters.branch_id)
+      }
+
+      const { data: stockData, error: stockError } = await query
+
+      if (stockError) throw stockError
+
+      // Filtrar solo stocks de la organización del usuario
+      const filteredStock = stockData?.filter(item => {
+        const branch = Array.isArray(item.branch) ? item.branch[0] : item.branch
+        return branch?.id // Solo mostrar items que tienen sucursal válida
+      }) || []
+
+      setStockItems(filteredStock as StockItem[])
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Error cargando stock: " + error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingStock(false)
+    }
+  }
+
   const addPurchaseItem = () => {
     setPurchaseItems([...purchaseItems, { product_id: '', quantity: 0, cost_price: 0 }])
   }
@@ -333,8 +411,9 @@ export default function InventoryMovements() {
         setPurchaseNotes('')
         setShowPurchaseDialog(false)
         
-        // Recargar movimientos
+        // Recargar movimientos y stock
         loadMovements()
+        loadCurrentStock()
       } else {
         console.log('❌ Compra fallida:', data)
         throw new Error(data?.message || 'Error registrando compra')
@@ -394,8 +473,9 @@ export default function InventoryMovements() {
       })
       setShowMovementDialog(false)
       
-      // Recargar movimientos
+      // Recargar movimientos y stock
       loadMovements()
+      loadCurrentStock()
 
     } catch (error: any) {
       toast({
@@ -699,16 +779,165 @@ export default function InventoryMovements() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Historial de Movimientos
-          </CardTitle>
-          <CardDescription>
-            Consulta todos los movimientos de inventario registrados
-          </CardDescription>
-        </CardHeader>
+      <Tabs defaultValue="movements" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="movements">Historial de Movimientos</TabsTrigger>
+          <TabsTrigger value="stock">Stock Actual</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stock" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Stock Actual
+              </CardTitle>
+              <CardDescription>
+                Consulta las existencias actuales por producto y sucursal
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Filtros para stock */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="space-y-2">
+                  <Label htmlFor="stock_search">Buscar Producto</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="stock_search"
+                      placeholder="Nombre o SKU del producto..."
+                      value={filters.search}
+                      onChange={(e) => setFilters({...filters, search: e.target.value})}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="stock_branch">Sucursal</Label>
+                  <Select value={filters.branch_id} onValueChange={(value) => setFilters({...filters, branch_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las sucursales" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las sucursales</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Tabla de stock actual */}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Sucursal</TableHead>
+                      <TableHead className="text-right">Stock Actual</TableHead>
+                      <TableHead className="text-right">Stock Mínimo</TableHead>
+                      <TableHead className="text-right">Stock Máximo</TableHead>
+                      <TableHead className="text-right">Costo</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Última Actualización</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingStock ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ) : stockItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                          No hay productos en stock
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      stockItems
+                        .filter(item => {
+                          if (!filters.search) return true
+                          const searchLower = filters.search.toLowerCase()
+                          const product = item.product
+                          return product.name.toLowerCase().includes(searchLower) ||
+                                 (product.sku?.toLowerCase().includes(searchLower))
+                        })
+                        .map((item) => {
+                          const isLowStock = item.min_stock && item.quantity <= item.min_stock
+                          const isOutOfStock = item.quantity <= 0
+                          const isHighStock = item.max_stock && item.quantity >= item.max_stock
+                          
+                          return (
+                            <TableRow key={item.id} className={isOutOfStock ? 'bg-red-50' : isLowStock ? 'bg-yellow-50' : ''}>
+                              <TableCell>
+                                <div className="font-medium">{item.product.name}</div>
+                              </TableCell>
+                              <TableCell>
+                                <code className="text-sm">{item.product.sku || '-'}</code>
+                              </TableCell>
+                              <TableCell>{item.branch.name}</TableCell>
+                              <TableCell className="text-right font-mono text-lg font-semibold">
+                                {item.quantity}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {item.min_stock || '-'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {item.max_stock || '-'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                ${item.cost_price.toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                {item.product.unit_of_measure || 'und'}
+                              </TableCell>
+                              <TableCell>
+                                {item.last_movement_date ? 
+                                  new Date(item.last_movement_date).toLocaleDateString('es-ES') : 
+                                  'Sin movimientos'
+                                }
+                              </TableCell>
+                              <TableCell>
+                                {isOutOfStock ? (
+                                  <Badge variant="destructive">Sin Stock</Badge>
+                                ) : isLowStock ? (
+                                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Stock Bajo</Badge>
+                                ) : isHighStock ? (
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">Stock Alto</Badge>
+                                ) : (
+                                  <Badge variant="default" className="bg-green-100 text-green-800">Disponible</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="movements">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Historial de Movimientos
+              </CardTitle>
+              <CardDescription>
+                Consulta todos los movimientos de inventario registrados
+              </CardDescription>
+            </CardHeader>
         <CardContent>
           {/* Filtros */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -864,7 +1093,9 @@ export default function InventoryMovements() {
             </Table>
           </div>
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
