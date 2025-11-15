@@ -1,8 +1,12 @@
 -- Corregir políticas RLS para inventory_settings
 -- El problema es que la política actual no permite INSERT cuando no existe el registro
 
--- Eliminar políticas existentes problemáticas
+-- Eliminar todas las políticas existentes para inventory_settings
+DROP POLICY IF EXISTS "Users can view inventory settings from their organization" ON inventory_settings;
 DROP POLICY IF EXISTS "Owners and admins can manage inventory settings" ON inventory_settings;
+DROP POLICY IF EXISTS "Owners and admins can insert inventory settings" ON inventory_settings;
+DROP POLICY IF EXISTS "Owners and admins can update inventory settings" ON inventory_settings;
+DROP POLICY IF EXISTS "Owners can delete inventory settings" ON inventory_settings;
 
 -- Crear políticas más específicas y permisivas para inventory_settings
 CREATE POLICY "Users can view inventory settings from their organization" ON inventory_settings
@@ -101,7 +105,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Corregir también las políticas de inventory_stock para permitir upsert
+DROP POLICY IF EXISTS "Users can view inventory stock from their organization" ON inventory_stock;
 DROP POLICY IF EXISTS "Users can manage inventory stock from their organization" ON inventory_stock;
+DROP POLICY IF EXISTS "Users can insert inventory stock from their organization" ON inventory_stock;
+DROP POLICY IF EXISTS "Users can update inventory stock from their organization" ON inventory_stock;
+DROP POLICY IF EXISTS "Owners and admins can delete inventory stock" ON inventory_stock;
 
 CREATE POLICY "Users can view inventory stock from their organization" ON inventory_stock
     FOR SELECT USING (
