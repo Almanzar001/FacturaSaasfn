@@ -245,7 +245,12 @@ export default function InventoryMovements() {
   }
 
   const registerPurchase = async () => {
+    console.log('🚀 Iniciando registerPurchase...')
+    console.log('📋 selectedBranch:', selectedBranch)
+    console.log('📋 purchaseItems:', purchaseItems)
+    
     if (!selectedBranch || purchaseItems.length === 0) {
+      console.log('❌ Validación inicial fallida')
       toast({
         title: "Error",
         description: "Selecciona una sucursal y agrega al menos un producto",
@@ -257,6 +262,7 @@ export default function InventoryMovements() {
     // Validar items
     for (const item of purchaseItems) {
       if (!item.product_id || item.quantity <= 0 || item.cost_price < 0) {
+        console.log('❌ Validación de items fallida:', item)
         toast({
           title: "Error",
           description: "Todos los productos deben tener cantidad > 0 y precio ≥ 0",
@@ -266,31 +272,56 @@ export default function InventoryMovements() {
       }
     }
 
+    console.log('✅ Validaciones pasadas, ejecutando...')
     setLoading(true)
+    
     try {
+      console.log('🔐 Obteniendo usuario...')
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No autenticado')
+      if (!user) {
+        console.log('❌ Usuario no autenticado')
+        throw new Error('No autenticado')
+      }
+      console.log('✅ Usuario obtenido:', user.id)
 
+      console.log('🏢 Obteniendo perfil...')
       const { data: profile } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', user.id)
         .single()
 
-      if (!profile?.organization_id) throw new Error('No hay organización asociada')
+      if (!profile?.organization_id) {
+        console.log('❌ No hay organización asociada')
+        throw new Error('No hay organización asociada')
+      }
+      console.log('✅ Organización obtenida:', profile.organization_id)
 
-      // Llamar función de registro de compra
-      const { data, error } = await supabase.rpc('register_purchase', {
+      // Preparar parámetros
+      const params = {
         p_organization_id: profile.organization_id,
         p_branch_id: selectedBranch,
         p_products: purchaseItems,
         p_notes: purchaseNotes || null
-      })
+      }
+      console.log('📤 Parámetros para RPC:', params)
 
-      if (error) throw error
+      // Llamar función de registro de compra
+      console.log('🔄 Llamando register_purchase...')
+      const { data, error } = await supabase.rpc('register_purchase', params)
+
+      console.log('📥 Respuesta RPC:', { data, error })
+
+      if (error) {
+        console.log('❌ Error en RPC:', error)
+        throw error
+      }
+
+      console.log('📊 Data recibida:', data)
 
       // La función ahora retorna un objeto JSONB directamente
       if (data?.success) {
+        console.log('✅ Compra exitosa:', data)
         toast({
           title: "Éxito",
           description: `Compra registrada: ${data.movements_created} movimientos creados`,
@@ -305,16 +336,19 @@ export default function InventoryMovements() {
         // Recargar movimientos
         loadMovements()
       } else {
+        console.log('❌ Compra fallida:', data)
         throw new Error(data?.message || 'Error registrando compra')
       }
 
     } catch (error: any) {
+      console.log('🔥 Error capturado:', error)
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       })
     } finally {
+      console.log('🏁 Finalizando registerPurchase...')
       setLoading(false)
     }
   }
