@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Plus, Package, ShoppingCart, RotateCcw, ArrowUpDown, Search, Calendar, Filter } from 'lucide-react'
+import { Loader2, Plus, Package, ShoppingCart, RotateCcw, ArrowUpDown, Search, Calendar, Filter, RefreshCw } from 'lucide-react'
 
 interface Product {
   id: string
@@ -86,6 +86,7 @@ export default function InventoryMovements() {
   const [loading, setLoading] = useState(false)
   const [loadingMovements, setLoadingMovements] = useState(false)
   const [loadingStock, setLoadingStock] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   
   // Estados para registro de compras
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)

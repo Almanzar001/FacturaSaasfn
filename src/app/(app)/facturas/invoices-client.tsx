@@ -521,7 +521,7 @@ export default function InvoicesComplete() {
         tax,
         tax_amount: tax, // For backward compatibility with existing schema
         total,
-        balance: total, // Initial balance equals total amount
+        balance: total, // Will be overridden below based on initial payment
         organization_id: organizationId,
         account_id: formData.account_id || null
       }
@@ -552,13 +552,18 @@ export default function InvoicesComplete() {
 
         if (functionError) throw functionError
 
+        // Determinar status inicial basado en pago
+        const initialStatus = formData.initial_payment >= total ? 'paid' : 'draft'
+        const initialBalance = Math.max(0, total - formData.initial_payment)
+
         const { data, error } = await supabase
           .from('invoices')
           .insert({
             ...invoiceData,
             document_type_id: formData.document_type_id,
             invoice_number: invoiceNumberData,
-            status: 'draft'
+            status: initialStatus,
+            balance: initialBalance
           })
           .select()
           .single()
