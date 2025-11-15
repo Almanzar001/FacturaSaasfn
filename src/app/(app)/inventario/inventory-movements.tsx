@@ -42,10 +42,15 @@ interface Movement {
   product: {
     name: string
     sku: string | null
-  }
+  } | {
+    name: string
+    sku: string | null
+  }[] | null
   branch: {
     name: string
-  }
+  } | {
+    name: string
+  }[] | null
 }
 
 interface PurchaseItem {
@@ -204,11 +209,12 @@ export default function InventoryMovements() {
       let filteredMovements = movementsData || []
       if (filters.search) {
         const searchLower = filters.search.toLowerCase()
-        filteredMovements = filteredMovements.filter(movement =>
-          movement.product?.name?.toLowerCase().includes(searchLower) ||
-          movement.product?.sku?.toLowerCase().includes(searchLower) ||
-          movement.notes?.toLowerCase().includes(searchLower)
-        )
+        filteredMovements = filteredMovements.filter(movement => {
+          const product = Array.isArray(movement.product) ? movement.product[0] : movement.product
+          return product?.name?.toLowerCase().includes(searchLower) ||
+                 product?.sku?.toLowerCase().includes(searchLower) ||
+                 movement.notes?.toLowerCase().includes(searchLower)
+        })
       }
 
       setMovements(filteredMovements)
@@ -778,13 +784,25 @@ export default function InventoryMovements() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{movement.product?.name}</div>
-                          {movement.product?.sku && (
-                            <div className="text-sm text-muted-foreground">SKU: {movement.product.sku}</div>
-                          )}
+                          {(() => {
+                            const product = Array.isArray(movement.product) ? movement.product[0] : movement.product
+                            return (
+                              <>
+                                <div className="font-medium">{product?.name}</div>
+                                {product?.sku && (
+                                  <div className="text-sm text-muted-foreground">SKU: {product.sku}</div>
+                                )}
+                              </>
+                            )
+                          })()}
                         </div>
                       </TableCell>
-                      <TableCell>{movement.branch?.name}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const branch = Array.isArray(movement.branch) ? movement.branch[0] : movement.branch
+                          return branch?.name
+                        })()}
+                      </TableCell>
                       <TableCell>{getMovementTypeBadge(movement.movement_type)}</TableCell>
                       <TableCell className="text-right font-mono">
                         {formatQuantity(movement.movement_type, movement.quantity)}
