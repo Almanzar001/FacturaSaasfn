@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Truck,
   FileDown,
-  BarChart3
+  BarChart3,
+  Warehouse
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/ui/logo'
@@ -32,6 +33,7 @@ const navigation = [
   { name: 'Cuentas por Pagar', href: '/cuentas-por-pagar', icon: FileDown },
   { name: 'Cotizaciones', href: '/cotizaciones', icon: Receipt },
   { name: 'Productos', href: '/productos', icon: Package },
+  { name: 'Inventario', href: '/inventario', icon: Warehouse },
   { name: 'Ingresos', href: '/ingresos', icon: TrendingUp },
   { name: 'Gastos', href: '/gastos', icon: CreditCard },
 ]
