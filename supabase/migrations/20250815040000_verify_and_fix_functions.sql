@@ -170,14 +170,54 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Política temporal más permisiva para depuración
+-- Asegurar que las políticas correctas están activas para branches
 DROP POLICY IF EXISTS "Temp allow all for debugging branches" ON branches;
-CREATE POLICY "Temp allow all for debugging branches" ON branches
-    FOR ALL USING (true);
+DROP POLICY IF EXISTS "Users can view branches from their organization" ON branches;
+DROP POLICY IF EXISTS "Owners and admins can insert branches" ON branches;
+DROP POLICY IF EXISTS "Owners and admins can update branches" ON branches;
+DROP POLICY IF EXISTS "Owners can delete branches" ON branches;
 
+CREATE POLICY "Users can view branches from their organization" ON branches
+    FOR SELECT USING (
+        organization_id IN (
+            SELECT organization_id 
+            FROM profiles 
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Owners and admins can insert branches" ON branches
+    FOR INSERT WITH CHECK (
+        organization_id IN (
+            SELECT organization_id 
+            FROM profiles 
+            WHERE id = auth.uid() 
+            AND role IN ('propietario', 'administrador')
+        )
+    );
+
+CREATE POLICY "Owners and admins can update branches" ON branches
+    FOR UPDATE USING (
+        organization_id IN (
+            SELECT organization_id 
+            FROM profiles 
+            WHERE id = auth.uid() 
+            AND role IN ('propietario', 'administrador')
+        )
+    );
+
+CREATE POLICY "Owners can delete branches" ON branches
+    FOR DELETE USING (
+        organization_id IN (
+            SELECT organization_id 
+            FROM profiles 
+            WHERE id = auth.uid() 
+            AND role = 'propietario'
+        )
+    );
+
+-- Asegurar que las políticas correctas están activas para inventory_settings
 DROP POLICY IF EXISTS "Temp allow all for debugging inventory_settings" ON inventory_settings;
-CREATE POLICY "Temp allow all for debugging inventory_settings" ON inventory_settings
-    FOR ALL USING (true);
 
 -- Verificar que las funciones se crearon correctamente
 DO $$
