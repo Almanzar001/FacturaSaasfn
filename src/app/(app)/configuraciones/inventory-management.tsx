@@ -184,23 +184,16 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
     }
 
     try {
-      if (settings) {
-        const { error } = await supabase
-          .from('inventory_settings')
-          .update(newSettings)
-          .eq('organization_id', organizationId)
+      const { data, error } = await supabase
+        .rpc('upsert_inventory_settings', {
+          p_organization_id: organizationId,
+          p_inventory_enabled: newSettings.inventory_enabled,
+          p_low_stock_threshold: newSettings.low_stock_threshold,
+          p_auto_deduct_on_invoice: newSettings.auto_deduct_on_invoice,
+          p_require_stock_validation: newSettings.require_stock_validation
+        })
 
-        if (error) throw error
-      } else {
-        const { error } = await supabase
-          .from('inventory_settings')
-          .insert({
-            organization_id: organizationId,
-            ...newSettings
-          })
-
-        if (error) throw error
-      }
+      if (error) throw error
 
       await fetchInventorySettings()
       await fetchInventoryStats()
@@ -232,9 +225,11 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
 
     try {
       const { error } = await supabase
-        .from('inventory_stock')
-        .update({ [field]: value })
-        .eq('id', stockId)
+        .rpc('upsert_inventory_stock_level', {
+          p_stock_id: stockId,
+          p_field_name: field,
+          p_value: value
+        })
 
       if (error) throw error
       await fetchStockData(selectedBranch)
