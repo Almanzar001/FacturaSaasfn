@@ -268,7 +268,6 @@ export default function BranchesManagement({ organizationId, userRole }: Branche
                       checked={branch.is_active || false}
                       onCheckedChange={() => toggleStatus(branch)}
                       disabled={!canManage}
-                      size="sm"
                     />
                   </div>
                 </div>

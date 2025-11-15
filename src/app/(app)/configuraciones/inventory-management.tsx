@@ -478,7 +478,7 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
                               <Input
                                 type="number"
                                 value={stock.max_stock || ''}
-                                onChange={(e) => updateStockLevel(stock.id, 'max_stock', parseInt(e.target.value) || null)}
+                                onChange={(e) => updateStockLevel(stock.id, 'max_stock', e.target.value ? parseInt(e.target.value) : 0)}
                                 className="h-8"
                                 placeholder="Sin límite"
                               />
@@ -489,7 +489,7 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
                                 type="number"
                                 step="0.01"
                                 value={stock.cost_price || ''}
-                                onChange={(e) => updateStockLevel(stock.id, 'cost_price', parseFloat(e.target.value) || 0)}
+                                onChange={(e) => updateStockLevel(stock.id, 'cost_price', e.target.value ? parseFloat(e.target.value) : 0)}
                                 className="h-8"
                                 placeholder="0.00"
                               />
