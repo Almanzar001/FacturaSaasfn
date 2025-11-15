@@ -289,10 +289,11 @@ export default function InventoryMovements() {
 
       if (error) throw error
 
-      if (data && data[0]?.success) {
+      // La función ahora retorna un objeto JSONB directamente
+      if (data?.success) {
         toast({
           title: "Éxito",
-          description: `Compra registrada: ${data[0].movements_created} movimientos creados`,
+          description: `Compra registrada: ${data.movements_created} movimientos creados`,
         })
         
         // Limpiar formulario
@@ -304,7 +305,7 @@ export default function InventoryMovements() {
         // Recargar movimientos
         loadMovements()
       } else {
-        throw new Error(data?.[0]?.message || 'Error registrando compra')
+        throw new Error(data?.message || 'Error registrando compra')
       }
 
     } catch (error: any) {
