@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Package } from 'lucide-react'
 import SearchInput from '@/components/ui/search-input'
+import { Switch } from '@/components/ui/switch'
 
 
 interface Product {
@@ -13,6 +14,9 @@ interface Product {
   description: string | null
   price: number
   category: string | null
+  is_inventory_tracked: boolean | null
+  sku: string | null
+  unit_of_measure: string | null
   created_at: string
 }
 
@@ -30,7 +34,10 @@ export default function ProductsClient() {
     name: '',
     description: '',
     price: '',
-    category: ''
+    category: '',
+    sku: '',
+    unit_of_measure: 'unidad',
+    is_inventory_tracked: false
   })
 
   const supabase = createClient()
@@ -130,6 +137,9 @@ export default function ProductsClient() {
         description: formData.description || null,
         price: parseFloat(formData.price),
         category: formData.category || null,
+        sku: formData.sku || null,
+        unit_of_measure: formData.unit_of_measure || 'unidad',
+        is_inventory_tracked: formData.is_inventory_tracked,
         organization_id: organizationId
       }
 
@@ -165,11 +175,22 @@ export default function ProductsClient() {
         name: product.name,
         description: product.description || '',
         price: product.price.toString(),
-        category: product.category || ''
+        category: product.category || '',
+        sku: product.sku || '',
+        unit_of_measure: product.unit_of_measure || 'unidad',
+        is_inventory_tracked: product.is_inventory_tracked || false
       })
     } else {
       setEditingProduct(null)
-      setFormData({ name: '', description: '', price: '', category: '' })
+      setFormData({ 
+        name: '', 
+        description: '', 
+        price: '', 
+        category: '',
+        sku: '',
+        unit_of_measure: 'unidad',
+        is_inventory_tracked: false
+      })
     }
     setShowModal(true)
   }
@@ -177,7 +198,15 @@ export default function ProductsClient() {
   const closeModal = () => {
     setShowModal(false)
     setEditingProduct(null)
-    setFormData({ name: '', description: '', price: '', category: '' })
+    setFormData({ 
+      name: '', 
+      description: '', 
+      price: '', 
+      category: '',
+      sku: '',
+      unit_of_measure: 'unidad',
+      is_inventory_tracked: false
+    })
   }
 
   const deleteProduct = async (id: string) => {
@@ -286,8 +315,9 @@ export default function ProductsClient() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inventario</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                   </tr>
@@ -296,13 +326,33 @@ export default function ProductsClient() {
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {product.name}
+                        <div>
+                          <div>{product.name}</div>
+                          {product.description && (
+                            <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.description || 'N/A'}
+                        {product.sku || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(product.price)}
+                        <div>
+                          <div>{formatCurrency(product.price)}</div>
+                          <div className="text-xs text-gray-500">por {product.unit_of_measure || 'unidad'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center">
+                          {product.is_inventory_tracked ? (
+                            <div className="flex items-center text-green-600">
+                              <Package className="h-4 w-4 mr-1" />
+                              <span className="text-xs">Sí</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">No</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {product.category || 'N/A'}
@@ -339,18 +389,24 @@ export default function ProductsClient() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium text-gray-900 truncate">
                         {product.name}
+                        {product.is_inventory_tracked && (
+                          <Package className="inline h-3 w-3 ml-1 text-green-600" />
+                        )}
                       </h3>
-                      <p className="text-xs text-gray-600 truncate">
-                        {product.description || 'Sin descripción'}
-                      </p>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        {product.sku && <span>SKU: {product.sku}</span>}
+                        {product.sku && product.description && <span>•</span>}
+                        {product.description && <span className="truncate">{product.description}</span>}
+                      </div>
                       {product.category && (
                         <p className="text-xs text-gray-500">{product.category}</p>
                       )}
                     </div>
-                    <div className="flex-shrink-0 ml-2">
+                    <div className="flex-shrink-0 ml-2 text-right">
                       <span className="text-sm font-medium text-gray-900">
                         {formatCurrency(product.price)}
                       </span>
+                      <p className="text-xs text-gray-500">por {product.unit_of_measure || 'unidad'}</p>
                     </div>
                   </div>
 
@@ -399,6 +455,65 @@ export default function ProductsClient() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                   <input type="text" name="category" value={formData.category} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                
+                {/* Nuevos campos para inventario */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <Package className="h-4 w-4 mr-2" />
+                    Configuración de Inventario
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Controlar Inventario</label>
+                        <p className="text-xs text-gray-500">Habilita el seguimiento de stock para este producto</p>
+                      </div>
+                      <Switch
+                        checked={formData.is_inventory_tracked}
+                        onCheckedChange={(checked) => 
+                          setFormData(prev => ({ ...prev, is_inventory_tracked: checked }))
+                        }
+                      />
+                    </div>
+                    
+                    {formData.is_inventory_tracked && (
+                      <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                          <input 
+                            type="text" 
+                            name="sku" 
+                            value={formData.sku} 
+                            onChange={handleInputChange} 
+                            placeholder="Código del producto"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
+                          <select
+                            name="unit_of_measure"
+                            value={formData.unit_of_measure}
+                            onChange={(e) => setFormData(prev => ({ ...prev, unit_of_measure: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="unidad">Unidad</option>
+                            <option value="kg">Kilogramo</option>
+                            <option value="g">Gramo</option>
+                            <option value="l">Litro</option>
+                            <option value="ml">Mililitro</option>
+                            <option value="m">Metro</option>
+                            <option value="cm">Centímetro</option>
+                            <option value="caja">Caja</option>
+                            <option value="paquete">Paquete</option>
+                            <option value="docena">Docena</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end space-x-3 pt-4 border-t">
                   <button type="button" onClick={closeModal} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancelar</button>

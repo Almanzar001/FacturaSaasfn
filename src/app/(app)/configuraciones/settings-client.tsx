@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import TeamMembers from './team-members'
 import AccountsSettings from './accounts-settings'
+import BranchesManagement from './branches-management'
+import InventoryManagement from './inventory-management'
 
 interface SettingsClientProps {
   user: SupabaseUser
@@ -439,11 +441,13 @@ export default function SettingsClient({ user }: SettingsClientProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="organization">Organización</TabsTrigger>
             <TabsTrigger value="team">Equipo</TabsTrigger>
-            <TabsTrigger value="documentTypes">Tipos de Comprobante</TabsTrigger>
+            <TabsTrigger value="documentTypes">Comprobantes</TabsTrigger>
             <TabsTrigger value="accounts">Cuentas</TabsTrigger>
+            <TabsTrigger value="branches">Sucursales</TabsTrigger>
+            <TabsTrigger value="inventory">Inventario</TabsTrigger>
           </TabsList>
           
           <TabsContent value="organization">
@@ -571,6 +575,20 @@ export default function SettingsClient({ user }: SettingsClientProps) {
 
           <TabsContent value="accounts">
             <AccountsSettings organizationId={organizationId!} />
+          </TabsContent>
+
+          <TabsContent value="branches">
+            <BranchesManagement 
+              organizationId={organizationId!} 
+              userRole={userRole}
+            />
+          </TabsContent>
+
+          <TabsContent value="inventory">
+            <InventoryManagement 
+              organizationId={organizationId!} 
+              userRole={userRole}
+            />
           </TabsContent>
 
         </Tabs>

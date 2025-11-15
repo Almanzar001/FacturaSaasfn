@@ -51,6 +51,7 @@ export interface Database {
           website: string | null
           organization_id: string | null
           onboarding_completed: boolean | null
+          branch_id: string | null
         }
         Insert: {
           id: string
@@ -61,6 +62,7 @@ export interface Database {
           website?: string | null
           organization_id?: string | null
           onboarding_completed?: boolean | null
+          branch_id?: string | null
         }
         Update: {
           id?: string
@@ -71,6 +73,7 @@ export interface Database {
           website?: string | null
           organization_id?: string | null
           onboarding_completed?: boolean | null
+          branch_id?: string | null
         }
       }
       organizations: {
@@ -189,6 +192,9 @@ export interface Database {
           price: number
           category: string | null
           organization_id: string
+          is_inventory_tracked: boolean | null
+          sku: string | null
+          unit_of_measure: string | null
           created_at: string
           updated_at: string
         }
@@ -199,6 +205,9 @@ export interface Database {
           price: number
           category?: string | null
           organization_id: string
+          is_inventory_tracked?: boolean | null
+          sku?: string | null
+          unit_of_measure?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -209,6 +218,9 @@ export interface Database {
           price?: number
           category?: string | null
           organization_id?: string
+          is_inventory_tracked?: boolean | null
+          sku?: string | null
+          unit_of_measure?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -332,6 +344,7 @@ export interface Database {
           tax_amount: number | null
           document_type_id: string | null
           account_id: string | null
+          branch_id: string | null
           created_at: string
           updated_at: string
         }
@@ -353,6 +366,7 @@ export interface Database {
           tax_amount?: number | null
           document_type_id?: string | null
           account_id?: string | null
+          branch_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -374,6 +388,7 @@ export interface Database {
           tax_amount?: number | null
           document_type_id?: string | null
           account_id?: string | null
+          branch_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -389,6 +404,7 @@ export interface Database {
           total: number
           status: string
           valid_until: string
+          branch_id: string | null
           created_at: string
           updated_at: string
         }
@@ -402,6 +418,7 @@ export interface Database {
           total: number
           status?: string
           valid_until: string
+          branch_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -415,6 +432,7 @@ export interface Database {
           total?: number
           status?: string
           valid_until?: string
+          branch_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -618,6 +636,243 @@ export interface Database {
           notes?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      branches: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          code: string
+          address: string | null
+          phone: string | null
+          email: string | null
+          is_main: boolean | null
+          is_active: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          code: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          is_main?: boolean | null
+          is_active?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          code?: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          is_main?: boolean | null
+          is_active?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      inventory_settings: {
+        Row: {
+          id: string
+          organization_id: string
+          inventory_enabled: boolean | null
+          low_stock_threshold: number | null
+          auto_deduct_on_invoice: boolean | null
+          require_stock_validation: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          inventory_enabled?: boolean | null
+          low_stock_threshold?: number | null
+          auto_deduct_on_invoice?: boolean | null
+          require_stock_validation?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          inventory_enabled?: boolean | null
+          low_stock_threshold?: number | null
+          auto_deduct_on_invoice?: boolean | null
+          require_stock_validation?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      inventory_stock: {
+        Row: {
+          id: string
+          product_id: string
+          branch_id: string
+          quantity: number
+          reserved_quantity: number
+          min_stock: number | null
+          max_stock: number | null
+          cost_price: number | null
+          last_movement_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          branch_id: string
+          quantity?: number
+          reserved_quantity?: number
+          min_stock?: number | null
+          max_stock?: number | null
+          cost_price?: number | null
+          last_movement_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          branch_id?: string
+          quantity?: number
+          reserved_quantity?: number
+          min_stock?: number | null
+          max_stock?: number | null
+          cost_price?: number | null
+          last_movement_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      inventory_movements: {
+        Row: {
+          id: string
+          product_id: string
+          branch_id: string
+          movement_type: string
+          quantity: number
+          previous_quantity: number
+          new_quantity: number
+          reference_type: string | null
+          reference_id: string | null
+          cost_price: number | null
+          notes: string | null
+          user_id: string | null
+          movement_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          branch_id: string
+          movement_type: string
+          quantity: number
+          previous_quantity?: number
+          new_quantity?: number
+          reference_type?: string | null
+          reference_id?: string | null
+          cost_price?: number | null
+          notes?: string | null
+          user_id?: string | null
+          movement_date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          branch_id?: string
+          movement_type?: string
+          quantity?: number
+          previous_quantity?: number
+          new_quantity?: number
+          reference_type?: string | null
+          reference_id?: string | null
+          cost_price?: number | null
+          notes?: string | null
+          user_id?: string | null
+          movement_date?: string
+          created_at?: string
+        }
+      }
+      inventory_transfers: {
+        Row: {
+          id: string
+          organization_id: string
+          from_branch_id: string
+          to_branch_id: string
+          transfer_number: string
+          status: string | null
+          transfer_date: string
+          notes: string | null
+          created_by: string
+          completed_by: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          from_branch_id: string
+          to_branch_id: string
+          transfer_number: string
+          status?: string | null
+          transfer_date?: string
+          notes?: string | null
+          created_by: string
+          completed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          from_branch_id?: string
+          to_branch_id?: string
+          transfer_number?: string
+          status?: string | null
+          transfer_date?: string
+          notes?: string | null
+          created_by?: string
+          completed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      inventory_transfer_items: {
+        Row: {
+          id: string
+          transfer_id: string
+          product_id: string
+          quantity: number
+          cost_price: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transfer_id: string
+          product_id: string
+          quantity: number
+          cost_price?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transfer_id?: string
+          product_id?: string
+          quantity?: number
+          cost_price?: number | null
+          created_at?: string
         }
       }
     }
