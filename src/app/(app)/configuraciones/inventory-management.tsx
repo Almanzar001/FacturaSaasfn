@@ -83,27 +83,33 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
   const canManage = userRole === 'propietario' || userRole === 'administrador'
 
   useEffect(() => {
-    fetchData()
+    if (organizationId) {
+      fetchData()
+    }
   }, [organizationId])
 
   const fetchData = async () => {
+    if (!organizationId) {
+      console.error('No organizationId provided')
+      return
+    }
+    
     setLoading(true)
     try {
-      await Promise.all([
-        fetchInventorySettings(),
-        fetchInventoryStats(),
-        fetchLowStockProducts(),
-        fetchBranches(),
-        fetchProducts()
-      ])
+      // Cargar datos de forma individual para mejor manejo de errores
+      await fetchInventorySettings().catch(e => console.error('Error loading settings:', e))
+      await fetchInventoryStats().catch(e => console.error('Error loading stats:', e))
+      await fetchLowStockProducts().catch(e => console.error('Error loading low stock:', e))
+      await fetchBranches().catch(e => console.error('Error loading branches:', e))
+      await fetchProducts().catch(e => console.error('Error loading products:', e))
       
       if (branches.length > 0) {
         setSelectedBranch(branches[0].id)
-        await fetchStockData(branches[0].id)
+        await fetchStockData(branches[0].id).catch(e => console.error('Error loading stock data:', e))
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      alert('Error al cargar los datos de inventario')
+      // Removed alert to avoid annoying the user
     } finally {
       setLoading(false)
     }
@@ -121,21 +127,115 @@ export default function InventoryManagement({ organizationId, userRole }: Invent
   }
 
   const fetchInventoryStats = async () => {
-    const { data, error } = await supabase
-      .rpc('get_inventory_stats', { org_id: organizationId })
+    try {
+      const { data, error } = await supabase
+        .rpc('get_inventory_stats', { org_id: organizationId })
 
-    if (error) throw error
-    if (data && data.length > 0) {
-      setStats(data[0])
+      if (error) {
+        console.warn('RPC get_inventory_stats failed, using fallback:', error.message)
+        await createBasicStats()
+        return
+      }
+      
+      if (data && data.length > 0) {
+        setStats(data[0])
+      } else {
+        await createBasicStats()
+      }
+    } catch (error) {
+      console.warn('fetchInventoryStats failed, using fallback')
+      await createBasicStats()
+    }
+  }
+
+  const createBasicStats = async () => {
+    try {
+      // Crear stats básicas manualmente
+      const { count: productsCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+
+      const { count: trackedProducts } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('is_inventory_tracked', true)
+
+      const { count: branchesCount } = await supabase
+        .from('branches')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+
+      setStats({
+        total_products: productsCount || 0,
+        tracked_products: trackedProducts || 0,
+        low_stock_items: 0,
+        total_branches: branchesCount || 0,
+        inventory_enabled: true
+      })
+    } catch (error) {
+      console.error('Error creating basic stats:', error)
+      setStats({
+        total_products: 0,
+        tracked_products: 0,
+        low_stock_items: 0,
+        total_branches: 0,
+        inventory_enabled: true
+      })
     }
   }
 
   const fetchLowStockProducts = async () => {
-    const { data, error } = await supabase
-      .rpc('get_low_stock_products', { org_id: organizationId })
+    try {
+      const { data, error } = await supabase
+        .rpc('get_low_stock_products', { org_id: organizationId })
 
-    if (error) throw error
-    setLowStockProducts(data || [])
+      if (error) {
+        console.warn('RPC get_low_stock_products failed, using fallback:', error.message)
+        await fetchLowStockManually()
+        return
+      }
+      
+      setLowStockProducts(data || [])
+    } catch (error) {
+      console.warn('fetchLowStockProducts failed, using fallback')
+      await fetchLowStockManually()
+    }
+  }
+
+  const fetchLowStockManually = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_stock')
+        .select(`
+          quantity,
+          min_stock,
+          product:products!inner(id, name, sku, organization_id),
+          branch:branches!inner(id, name, organization_id)
+        `)
+        .eq('product.organization_id', organizationId)
+        .eq('branch.organization_id', organizationId)
+        .lt('quantity', 5) // Productos con menos de 5 en stock
+
+      if (error) throw error
+
+      const lowStock = (data || []).map((item: any) => ({
+        product_id: item.product.id,
+        product_name: item.product.name,
+        branch_id: item.branch.id,
+        branch_name: item.branch.name,
+        current_stock: item.quantity,
+        min_stock: item.min_stock || 5,
+        sku: item.product.sku
+      }))
+
+      setLowStockProducts(lowStock)
+    } catch (error) {
+      console.error('Error fetching low stock manually:', error)
+      setLowStockProducts([])
+    }
   }
 
   const fetchBranches = async () => {

@@ -51,3 +51,8 @@ logs
 
 # Supabase
 .supabase
+
+# Development files
+temp_development_files/
+*.sql
+temp_*.md

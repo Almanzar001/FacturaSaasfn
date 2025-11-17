@@ -137,7 +137,8 @@ export default function ProductsClient() {
         description: formData.description || null,
         price: parseFloat(formData.price),
         category: formData.category || null,
-        sku: formData.sku || null,
+        // Solo incluir SKU si NO tiene seguimiento de inventario o si estamos editando
+        sku: formData.is_inventory_tracked && !editingProduct ? null : (formData.sku || null),
         unit_of_measure: formData.unit_of_measure || 'unidad',
         is_inventory_tracked: formData.is_inventory_tracked,
         organization_id: organizationId
@@ -452,9 +453,24 @@ export default function ProductsClient() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Precio *</label>
                   <input type="number" name="price" value={formData.price} onChange={handleInputChange} required min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <input type="text" name="category" value={formData.category} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    <input type="text" name="category" value={formData.category} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  {!formData.is_inventory_tracked && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">SKU (Opcional)</label>
+                      <input 
+                        type="text" 
+                        name="sku" 
+                        value={formData.sku} 
+                        onChange={handleInputChange} 
+                        placeholder="Código manual"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+                  )}
                 </div>
                 
                 {/* Nuevos campos para inventario */}
@@ -473,7 +489,12 @@ export default function ProductsClient() {
                       <Switch
                         checked={formData.is_inventory_tracked}
                         onCheckedChange={(checked) => 
-                          setFormData(prev => ({ ...prev, is_inventory_tracked: checked }))
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            is_inventory_tracked: checked,
+                            // Limpiar SKU al cambiar el tipo para evitar conflictos
+                            sku: checked && !editingProduct ? '' : prev.sku
+                          }))
                         }
                       />
                     </div>
@@ -482,14 +503,25 @@ export default function ProductsClient() {
                       <div className="grid grid-cols-2 gap-4 pt-2">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                          <input 
-                            type="text" 
-                            name="sku" 
-                            value={formData.sku} 
-                            onChange={handleInputChange} 
-                            placeholder="Código del producto"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                          />
+                          {editingProduct ? (
+                            <input 
+                              type="text" 
+                              name="sku" 
+                              value={formData.sku} 
+                              onChange={handleInputChange} 
+                              placeholder="Código del producto"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            />
+                          ) : (
+                            <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500 text-sm">
+                              Se generará automáticamente
+                            </div>
+                          )}
+                          {!editingProduct && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              El SKU se asignará automáticamente (ej: SKU-000001)
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>

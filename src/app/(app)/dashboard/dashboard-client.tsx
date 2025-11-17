@@ -193,8 +193,7 @@ export default function DashboardClient() {
               .select('id, total, issue_date')
               .eq('organization_id', profile.organization_id)
               .gte('issue_date', startDate.split('T')[0])
-              .lte('issue_date', effectiveEndDate)
-              .order('issue_date', { ascending: false }),
+              .lte('issue_date', effectiveEndDate),
             
             // Consultar cotizaciones según el filtro de tiempo
             supabase
@@ -202,8 +201,7 @@ export default function DashboardClient() {
               .select('id, total, created_at')
               .eq('organization_id', profile.organization_id)
               .gte('created_at', startDate)
-              .lte('created_at', endDate)
-              .order('created_at', { ascending: false }),
+              .lte('created_at', endDate),
             
             // Consultar pagos según el filtro de tiempo
             supabase
@@ -211,8 +209,7 @@ export default function DashboardClient() {
               .select('amount, payment_date, id')
               .eq('organization_id', profile.organization_id)
               .gte('payment_date', startDate.split('T')[0])
-              .lte('payment_date', effectiveEndDate)
-              .order('payment_date', { ascending: false }),
+              .lte('payment_date', effectiveEndDate),
             
             // Consultar productos
             supabase
@@ -226,8 +223,7 @@ export default function DashboardClient() {
               .select('amount, income_date, id, description, category')
               .eq('organization_id', profile.organization_id)
               .gte('income_date', startDate.split('T')[0])
-              .lte('income_date', effectiveEndDate)
-              .order('income_date', { ascending: false }),
+              .lte('income_date', effectiveEndDate),
             
             // Consultar gastos según el filtro de tiempo usando expense_date
             supabase
@@ -236,7 +232,6 @@ export default function DashboardClient() {
               .eq('organization_id', profile.organization_id)
               .gte('expense_date', startDate.split('T')[0])
               .lte('expense_date', effectiveEndDate)
-              .order('expense_date', { ascending: false })
           ]);
           
           // Verificar errores críticos

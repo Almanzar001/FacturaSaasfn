@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,6 +87,7 @@ export default function InventoryMovements() {
   const [loadingMovements, setLoadingMovements] = useState(false)
   const [loadingStock, setLoadingStock] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [branchSummary, setBranchSummary] = useState<any[]>([])
   
   // Estados para registro de compras
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
@@ -96,6 +97,16 @@ export default function InventoryMovements() {
   
   // Estados para movimiento manual
   const [showMovementDialog, setShowMovementDialog] = useState(false)
+  
+  // Estados para transferencias
+  const [showTransferDialog, setShowTransferDialog] = useState(false)
+  const [transferForm, setTransferForm] = useState({
+    product_id: '',
+    from_branch_id: '',
+    to_branch_id: '',
+    quantity: 0,
+    notes: ''
+  })
   const [movementForm, setMovementForm] = useState({
     product_id: '',
     branch_id: '',
@@ -105,14 +116,28 @@ export default function InventoryMovements() {
     notes: ''
   })
   
-  // Estados para filtros
+  // Estados para filtros (sin search)
   const [filters, setFilters] = useState({
     branch_id: 'all',
     movement_type: 'all',
-    search: '',
     date_from: '',
     date_to: ''
   })
+
+  // Estado separado para búsqueda con debounce
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+
+  // Debounce personalizado para búsqueda
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 500) // 500ms delay
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [searchQuery])
 
   const supabase = createClient()
   const { toast } = useToast()
@@ -121,10 +146,18 @@ export default function InventoryMovements() {
     loadInitialData()
   }, [])
 
+  // Cargar datos cuando cambien los filtros (sin búsqueda)
   useEffect(() => {
     loadMovements()
     loadCurrentStock()
+    loadBranchSummary()
   }, [filters])
+
+  // Cargar movimientos cuando cambie la búsqueda debounced
+  useEffect(() => {
+    if (debouncedSearchQuery !== searchQuery) return // Evitar doble carga
+    loadMovements()
+  }, [debouncedSearchQuery])
 
   const loadInitialData = async () => {
     setLoading(true)
@@ -174,7 +207,7 @@ export default function InventoryMovements() {
     }
   }
 
-  const loadMovements = async () => {
+  const loadMovements = useCallback(async () => {
     setLoadingMovements(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -201,9 +234,11 @@ export default function InventoryMovements() {
           cost_price,
           notes,
           movement_date,
-          product:products(name, sku),
-          branch:branches(name)
+          product:products!inner(name, sku, organization_id),
+          branch:branches!inner(name, organization_id)
         `)
+        .eq('product.organization_id', profile.organization_id)
+        .eq('branch.organization_id', profile.organization_id)
         .order('movement_date', { ascending: false })
 
       // Aplicar filtros
@@ -224,23 +259,26 @@ export default function InventoryMovements() {
       }
 
       const { data: movementsData, error: movementsError } = await query
-        .limit(100)
+        .limit(500) // Aumentar límite para permitir filtrado
 
       if (movementsError) throw movementsError
 
-      // Filtrar por búsqueda en el cliente
+      // Aplicar búsqueda en el cliente de manera eficiente
       let filteredMovements = movementsData || []
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
+      if (debouncedSearchQuery.trim()) {
+        const searchLower = debouncedSearchQuery.toLowerCase()
         filteredMovements = filteredMovements.filter(movement => {
           const product = Array.isArray(movement.product) ? movement.product[0] : movement.product
-          return product?.name?.toLowerCase().includes(searchLower) ||
-                 product?.sku?.toLowerCase().includes(searchLower) ||
-                 movement.notes?.toLowerCase().includes(searchLower)
+          return (
+            product?.name?.toLowerCase().includes(searchLower) ||
+            product?.sku?.toLowerCase().includes(searchLower) ||
+            movement.notes?.toLowerCase().includes(searchLower)
+          )
         })
       }
 
-      setMovements(filteredMovements)
+      // Limitar a 100 resultados después del filtrado
+      setMovements(filteredMovements.slice(0, 100))
 
     } catch (error: any) {
       toast({
@@ -251,7 +289,7 @@ export default function InventoryMovements() {
     } finally {
       setLoadingMovements(false)
     }
-  }
+  }, [filters, debouncedSearchQuery, supabase, toast])
 
   const loadCurrentStock = async () => {
     setLoadingStock(true)
@@ -276,9 +314,11 @@ export default function InventoryMovements() {
           max_stock,
           cost_price,
           last_movement_date,
-          product:products(id, name, sku, unit_of_measure),
-          branch:branches(id, name)
+          product:products!inner(id, name, sku, unit_of_measure, organization_id),
+          branch:branches!inner(id, name, organization_id)
         `)
+        .eq('product.organization_id', profile.organization_id)
+        .eq('branch.organization_id', profile.organization_id)
         .order('last_movement_date', { ascending: false })
 
       // Aplicar filtro de sucursal si está seleccionado
@@ -315,6 +355,62 @@ export default function InventoryMovements() {
       })
     } finally {
       setLoadingStock(false)
+    }
+  }
+
+  const loadBranchSummary = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.organization_id) return
+
+      // Resumen de stock por sucursal
+      const { data: summaryData, error } = await supabase
+        .from('inventory_stock')
+        .select(`
+          quantity,
+          product:products!inner(name, organization_id),
+          branch:branches!inner(id, name, organization_id)
+        `)
+        .eq('product.organization_id', profile.organization_id)
+        .eq('branch.organization_id', profile.organization_id)
+
+      if (error) throw error
+
+      // Agrupar por sucursal
+      const branchGroups = summaryData?.reduce((acc: any, item: any) => {
+        const branch = Array.isArray(item.branch) ? item.branch[0] : item.branch
+        const branchId = branch?.id
+        const branchName = branch?.name
+
+        if (!acc[branchId]) {
+          acc[branchId] = {
+            branchId,
+            branchName,
+            totalProducts: 0,
+            totalQuantity: 0,
+            lowStockCount: 0
+          }
+        }
+
+        acc[branchId].totalProducts += 1
+        acc[branchId].totalQuantity += item.quantity || 0
+        if (item.quantity <= 5) acc[branchId].lowStockCount += 1
+
+        return acc
+      }, {})
+
+      setBranchSummary(Object.values(branchGroups || {}))
+
+    } catch (error: any) {
+      console.error('Error loading branch summary:', error)
     }
   }
 
@@ -498,6 +594,81 @@ export default function InventoryMovements() {
     }
   }
 
+  const handleTransfer = async () => {
+    if (!transferForm.product_id || !transferForm.from_branch_id || !transferForm.to_branch_id || transferForm.quantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Complete todos los campos obligatorios",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (transferForm.from_branch_id === transferForm.to_branch_id) {
+      toast({
+        title: "Error", 
+        description: "No puede transferir a la misma sucursal",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No autenticado')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.organization_id) throw new Error('No hay organización asociada')
+
+      const { error } = await supabase.rpc('transfer_inventory', {
+        p_organization_id: profile.organization_id,
+        p_product_id: transferForm.product_id,
+        p_from_branch_id: transferForm.from_branch_id,
+        p_to_branch_id: transferForm.to_branch_id,
+        p_quantity: transferForm.quantity,
+        p_notes: transferForm.notes || 'Transferencia desde inventario',
+        p_user_id: user.id
+      })
+
+      if (error) throw error
+
+      toast({
+        title: "Éxito",
+        description: "Transferencia realizada correctamente",
+      })
+      
+      // Limpiar formulario
+      setTransferForm({
+        product_id: '',
+        from_branch_id: '',
+        to_branch_id: '',
+        quantity: 0,
+        notes: ''
+      })
+      setShowTransferDialog(false)
+      
+      // Recargar datos
+      loadMovements()
+      loadCurrentStock()
+      loadBranchSummary()
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getMovementTypeBadge = (type: string) => {
     switch (type) {
       case 'entrada':
@@ -507,9 +678,9 @@ export default function InventoryMovements() {
       case 'ajuste':
         return <Badge className="bg-blue-100 text-blue-800">Ajuste</Badge>
       case 'transferencia_entrada':
-        return <Badge className="bg-purple-100 text-purple-800">Transferencia In</Badge>
+        return <Badge className="bg-purple-100 text-purple-800">Transfer. Entrada</Badge>
       case 'transferencia_salida':
-        return <Badge className="bg-orange-100 text-orange-800">Transferencia Out</Badge>
+        return <Badge className="bg-orange-100 text-orange-800">Transfer. Salida</Badge>
       default:
         return <Badge variant="secondary">{type}</Badge>
     }
@@ -539,6 +710,107 @@ export default function InventoryMovements() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                Transferir Stock
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Transferir Inventario</DialogTitle>
+                <DialogDescription>
+                  Mover productos entre sucursales
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Producto</label>
+                  <select
+                    value={transferForm.product_id}
+                    onChange={(e) => setTransferForm({...transferForm, product_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar producto</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} {product.sku && `(${product.sku})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Desde Sucursal</label>
+                    <select
+                      value={transferForm.from_branch_id}
+                      onChange={(e) => setTransferForm({...transferForm, from_branch_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar sucursal origen</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Hacia Sucursal</label>
+                    <select
+                      value={transferForm.to_branch_id}
+                      onChange={(e) => setTransferForm({...transferForm, to_branch_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar sucursal destino</option>
+                      {branches.filter(b => b.id !== transferForm.from_branch_id).map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Cantidad</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={transferForm.quantity || ''}
+                    onChange={(e) => setTransferForm({...transferForm, quantity: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notas (opcional)</label>
+                  <textarea
+                    placeholder="Motivo de la transferencia..."
+                    value={transferForm.notes}
+                    onChange={(e) => setTransferForm({...transferForm, notes: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowTransferDialog(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleTransfer} disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Transferir
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -789,11 +1061,71 @@ export default function InventoryMovements() {
         </div>
       </div>
 
+      {/* Resumen por Sucursal */}
+      {branchSummary.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumen por Sucursal</CardTitle>
+            <CardDescription>Stock actual distribuido en cada sucursal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {branchSummary.map((summary: any) => (
+                <div key={summary.branchId} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <h3 className="font-medium text-lg mb-2">{summary.branchName}</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Productos:</span>
+                      <span className="font-medium">{summary.totalProducts}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Stock Total:</span>
+                      <span className="font-medium">{summary.totalQuantity}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Stock Bajo:</span>
+                      <span className={`font-medium ${summary.lowStockCount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {summary.lowStockCount}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2"
+                      onClick={() => setFilters(prev => ({ ...prev, branch_id: summary.branchId }))}
+                    >
+                      Ver Detalles
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="movements" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="movements">Historial de Movimientos</TabsTrigger>
-          <TabsTrigger value="stock">Stock Actual</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="movements">Historial de Movimientos</TabsTrigger>
+            <TabsTrigger value="stock">Stock Actual</TabsTrigger>
+          </TabsList>
+          
+          {filters.branch_id !== 'all' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">
+                Filtrando por: {branches.find(b => b.id === filters.branch_id)?.name}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters(prev => ({ ...prev, branch_id: 'all' }))}
+              >
+                Ver Todas las Sucursales
+              </Button>
+            </div>
+          )}
+        </div>
 
         <TabsContent value="stock" className="space-y-4">
           <Card>
@@ -816,8 +1148,8 @@ export default function InventoryMovements() {
                     <Input
                       id="stock_search"
                       placeholder="Nombre o SKU del producto..."
-                      value={filters.search}
-                      onChange={(e) => setFilters({...filters, search: e.target.value})}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9"
                     />
                   </div>
@@ -874,8 +1206,8 @@ export default function InventoryMovements() {
                     ) : (
                       stockItems
                         .filter(item => {
-                          if (!filters.search) return true
-                          const searchLower = filters.search.toLowerCase()
+                          if (!debouncedSearchQuery) return true
+                          const searchLower = debouncedSearchQuery.toLowerCase()
                           const product = item.product
                           return product.name.toLowerCase().includes(searchLower) ||
                                  (product.sku?.toLowerCase().includes(searchLower))
@@ -958,8 +1290,8 @@ export default function InventoryMovements() {
                 <Input
                   id="search"
                   placeholder="Producto, SKU, notas..."
-                  value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -1020,6 +1352,26 @@ export default function InventoryMovements() {
             </div>
           </div>
 
+          {/* Indicador de búsqueda activa */}
+          {debouncedSearchQuery && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2">
+                <Search className="w-4 h-4 text-blue-600" />
+                <span className="text-sm text-blue-800">
+                  Buscando: "{debouncedSearchQuery}" ({movements.length} resultados)
+                </span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSearchQuery('')}
+                className="text-blue-600 hover:text-blue-800 px-2 py-1 h-auto"
+              >
+                Limpiar
+              </Button>
+            </div>
+          )}
+
           {/* Tabla de movimientos */}
           <div className="rounded-md border">
             <Table>
@@ -1047,7 +1399,10 @@ export default function InventoryMovements() {
                 ) : movements.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      No hay movimientos registrados
+                      {debouncedSearchQuery ? 
+                        `No se encontraron movimientos que contengan "${debouncedSearchQuery}"` : 
+                        'No hay movimientos registrados'
+                      }
                     </TableCell>
                   </TableRow>
                 ) : (

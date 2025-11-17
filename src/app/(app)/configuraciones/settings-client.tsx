@@ -14,6 +14,7 @@ import TeamMembers from './team-members'
 import AccountsSettings from './accounts-settings'
 import BranchesManagement from './branches-management'
 import InventoryManagement from './inventory-management'
+import { UserManagement } from '@/components/admin/UserManagement'
 
 interface SettingsClientProps {
   user: SupabaseUser
@@ -430,24 +431,46 @@ export default function SettingsClient({ user }: SettingsClientProps) {
   }
 
   return (
-    <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Configuraciones</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Configuraciones</h1>
+            <p className="text-muted-foreground text-sm sm:text-base mt-1">
               Gestiona los datos de tu organización, miembros del equipo y tipos de comprobantes.
             </p>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="organization">Organización</TabsTrigger>
-            <TabsTrigger value="team">Equipo</TabsTrigger>
-            <TabsTrigger value="documentTypes">Comprobantes</TabsTrigger>
-            <TabsTrigger value="accounts">Cuentas</TabsTrigger>
-            <TabsTrigger value="branches">Sucursales</TabsTrigger>
-            <TabsTrigger value="inventory">Inventario</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto">
+            <TabsTrigger value="organization" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Organización</span>
+              <span className="sm:hidden">Org</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Equipo</span>
+              <span className="sm:hidden">Team</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Usuarios</span>
+              <span className="sm:hidden">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="documentTypes" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Comprobantes</span>
+              <span className="sm:hidden">Docs</span>
+            </TabsTrigger>
+            <TabsTrigger value="accounts" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Cuentas</span>
+              <span className="sm:hidden">Ctas</span>
+            </TabsTrigger>
+            <TabsTrigger value="branches" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Sucursales</span>
+              <span className="sm:hidden">Suc</span>
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="text-xs sm:text-sm p-2 sm:p-3">
+              <span className="hidden sm:inline">Inventario</span>
+              <span className="sm:hidden">Inv</span>
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="organization">
@@ -460,7 +483,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleOrgSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Nombre de la Empresa</label>
                       <Input name="name" value={orgFormData.name} onChange={handleOrgInputChange} />
@@ -474,7 +497,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                     <label className="block text-sm font-medium text-gray-700">Dirección</label>
                     <Input name="address" value={orgFormData.address} onChange={handleOrgInputChange} />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Teléfono</label>
                       <Input name="phone" value={orgFormData.phone} onChange={handleOrgInputChange} />
@@ -490,17 +513,17 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Logotipo</label>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       {orgFormData.logo_url && <img src={orgFormData.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded-md border" />}
-                      <Input type="file" onChange={handleLogoUpload} accept="image/*" className="max-w-xs" />
+                      <Input type="file" onChange={handleLogoUpload} accept="image/*" className="w-full sm:max-w-xs" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Firma Digital</label>
-                    <p className="text-sm text-gray-500 mb-2">Esta firma aparecerá en la sección "Elaborado por" de los PDFs</p>
-                    <div className="flex items-center gap-4">
+                    <p className="text-xs sm:text-sm text-gray-500 mb-2">Esta firma aparecerá en la sección "Elaborado por" de los PDFs</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       {orgFormData.digital_signature_url && <img src={orgFormData.digital_signature_url} alt="Firma Digital" className="h-16 w-32 object-contain rounded-md border bg-white p-2" />}
-                      <Input type="file" onChange={handleSignatureUpload} accept="image/*" className="max-w-xs" />
+                      <Input type="file" onChange={handleSignatureUpload} accept="image/*" className="w-full sm:max-w-xs" />
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -573,6 +596,10 @@ export default function SettingsClient({ user }: SettingsClientProps) {
             />
           </TabsContent>
 
+          <TabsContent value="users">
+            <UserManagement />
+          </TabsContent>
+
           <TabsContent value="accounts">
             <AccountsSettings organizationId={organizationId!} />
           </TabsContent>
@@ -595,10 +622,10 @@ export default function SettingsClient({ user }: SettingsClientProps) {
 
         {/* Modal for Document Types */}
         {showModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
+            <div className="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                <h3 className="text-base sm:text-lg font-medium leading-6 text-gray-900 mb-4">
                   {editingType ? 'Editar Tipo' : 'Nuevo Tipo de Comprobante'}
                 </h3>
                 <form onSubmit={handleDocTypeSubmit} className="space-y-4">
@@ -614,7 +641,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                     <label className="block text-sm font-medium text-gray-700">Descripción</label>
                     <Input name="description" value={docTypeFormData.description} onChange={handleDocTypeInputChange} placeholder="Descripción del tipo de comprobante" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Prefijo *</label>
                       <Input name="prefix" value={docTypeFormData.prefix} onChange={handleDocTypeInputChange} required placeholder="Ej: B01" maxLength={10} />
@@ -624,9 +651,9 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                       <Input type="number" name="sequence_next_value" value={docTypeFormData.sequence_next_value} onChange={handleDocTypeInputChange} required min="1" />
                     </div>
                   </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
-                    <Button type="submit">{editingType ? 'Actualizar' : 'Crear'}</Button>
+                  <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+                    <Button type="button" variant="outline" onClick={closeModal} className="w-full sm:w-auto">Cancelar</Button>
+                    <Button type="submit" className="w-full sm:w-auto">{editingType ? 'Actualizar' : 'Crear'}</Button>
                   </div>
                 </form>
               </div>

@@ -90,6 +90,13 @@ interface Account {
   is_default: boolean
 }
 
+interface Branch {
+  id: string
+  name: string
+  is_main: boolean
+  is_active: boolean
+}
+
 export default function InvoicesComplete() {
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -99,6 +106,7 @@ export default function InvoicesComplete() {
   const [products, setProducts] = useState<Product[]>([])
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [showModal, setShowModal] = useState(false)
@@ -126,11 +134,13 @@ export default function InvoicesComplete() {
     name: '',
     description: '',
     price: 0,
-    category: ''
+    category: '',
+    is_inventory_tracked: false
   })
   
   const [formData, setFormData] = useState({
     client_id: '',
+    branch_id: '',
     issue_date: '',
     due_date: '',
     notes: '',
@@ -215,6 +225,7 @@ export default function InvoicesComplete() {
         fetchProducts(profile.organization_id)
         fetchDocumentTypes(profile.organization_id)
         fetchAccounts(profile.organization_id)
+        fetchBranches(profile.organization_id)
       } else {
         setError('No se encontró organización')
         setLoading(false)
@@ -348,6 +359,28 @@ export default function InvoicesComplete() {
     }
   }
 
+  const fetchBranches = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name, is_main, is_active')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+        .order('is_main', { ascending: false })
+        .order('name')
+
+      if (error) throw error
+      setBranches(data || [])
+      
+      const mainBranch = data?.find(branch => branch.is_main)
+      if (mainBranch) {
+        setFormData(prev => ({ ...prev, branch_id: mainBranch.id }))
+      }
+    } catch (error) {
+      // Do not alert here, as it might be annoying for the user
+    }
+  }
+
   // Funciones para crear cliente y producto
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -443,7 +476,8 @@ export default function InvoicesComplete() {
         name: '',
         description: '',
         price: 0,
-        category: ''
+        category: '',
+        is_inventory_tracked: false
       })
 
       // Mostrar mensaje de éxito
@@ -506,12 +540,17 @@ export default function InvoicesComplete() {
       alert('Debe seleccionar una cuenta para la factura')
       return
     }
+    if (!formData.branch_id) {
+      alert('Debe seleccionar una sucursal para la factura')
+      return
+    }
 
     try {
       const { subtotal, discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals()
 
       const invoiceData = {
         client_id: formData.client_id,
+        branch_id: formData.branch_id || null,
         issue_date: formData.issue_date,
         due_date: formData.due_date,
         notes: formData.notes,
@@ -521,7 +560,7 @@ export default function InvoicesComplete() {
         tax,
         tax_amount: tax, // For backward compatibility with existing schema
         total,
-        balance: total, // Will be overridden below based on initial payment
+        balance: total, // Initial balance equals total amount
         organization_id: organizationId,
         account_id: formData.account_id || null
       }
@@ -552,18 +591,13 @@ export default function InvoicesComplete() {
 
         if (functionError) throw functionError
 
-        // Determinar status inicial basado en pago
-        const initialStatus = formData.initial_payment >= total ? 'paid' : 'draft'
-        const initialBalance = Math.max(0, total - formData.initial_payment)
-
         const { data, error } = await supabase
           .from('invoices')
           .insert({
             ...invoiceData,
             document_type_id: formData.document_type_id,
             invoice_number: invoiceNumberData,
-            status: initialStatus,
-            balance: initialBalance
+            status: 'draft'
           })
           .select()
           .single()
@@ -595,8 +629,20 @@ export default function InvoicesComplete() {
           client_id: formData.client_id,
           amount: formData.initial_payment,
           payment_date: formData.issue_date,
-          organization_id: organizationId
+          organization_id: organizationId,
+          account_id: formData.account_id
         })
+        
+        // Si el pago inicial cubre el total, marcar factura como pagada
+        if (formData.initial_payment >= total) {
+          await supabase
+            .from('invoices')
+            .update({ 
+              status: 'paid',
+              balance: 0
+            })
+            .eq('id', invoiceId)
+        }
       }
 
       closeModal()
@@ -706,6 +752,7 @@ export default function InvoicesComplete() {
       
       setFormData({
         client_id: '',
+        branch_id: branches.find(branch => branch.is_main)?.id || '',
         issue_date: today,
         due_date: dueDate,
         notes: '',
@@ -727,6 +774,7 @@ export default function InvoicesComplete() {
     setEditingInvoice(null)
     setFormData({
       client_id: '',
+      branch_id: branches.find(branch => branch.is_main)?.id || '',
       issue_date: '',
       due_date: '',
       notes: '',
@@ -888,6 +936,25 @@ export default function InvoicesComplete() {
       // Refetch invoices to get updated balance (the trigger should have updated it)
       await fetchInvoices(organizationId)
       
+      // Check if invoice is now fully paid and update status if needed
+      if (selectedInvoice) {
+        const { data: updatedInvoice } = await supabase
+          .from('invoices')
+          .select('balance, total, status')
+          .eq('id', selectedInvoice.id)
+          .single()
+        
+        if (updatedInvoice && (updatedInvoice.balance ?? 0) <= 0 && updatedInvoice.status !== 'paid') {
+          await supabase
+            .from('invoices')
+            .update({ status: 'paid' })
+            .eq('id', selectedInvoice.id)
+          
+          // Refetch again to show updated status
+          await fetchInvoices(organizationId)
+        }
+      }
+      
       // Refresh dashboard to update recent activity
       setTimeout(() => refreshDashboard(), 500)
       
@@ -1003,6 +1070,7 @@ export default function InvoicesComplete() {
 
     setFormData({
       client_id: quoteData.client_id,
+      branch_id: branches.find(branch => branch.is_main)?.id || '',
       issue_date: today,
       due_date: dueDate,
       notes: quoteData.notes || '',
@@ -1489,25 +1557,47 @@ export default function InvoicesComplete() {
                   </div>
                 </div>
 
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                     Cuenta *
-                   </label>
-                   <select
-                     name="account_id"
-                     value={formData.account_id}
-                     onChange={handleInputChange}
-                     required
-                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   >
-                     <option value="">Seleccionar cuenta</option>
-                     {accounts.map(account => (
-                       <option key={account.id} value={account.id}>
-                         {account.name} {account.is_default ? '(Default)' : ''}
-                       </option>
-                     ))}
-                   </select>
-                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Sucursal *
+                    </label>
+                    <select
+                      name="branch_id"
+                      value={formData.branch_id}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar sucursal</option>
+                      {branches.map(branch => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name} {branch.is_main ? '(Principal)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cuenta *
+                    </label>
+                    <select
+                      name="account_id"
+                      value={formData.account_id}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar cuenta</option>
+                      {accounts.map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} {account.is_default ? '(Default)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
                 {/* Tax Rate */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
@@ -1629,9 +1719,8 @@ export default function InvoicesComplete() {
                           <input
                             type="number"
                             value={newItem.quantity}
-                            onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
-                            min="0.01"
-                            step="0.01"
+                            onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                            min="1"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
