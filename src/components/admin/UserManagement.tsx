@@ -363,7 +363,6 @@ export function UserManagement() {
                               <div className="flex-1 min-w-0">
                                 <span className="font-medium truncate block">{assignment.full_name}</span>
                                 <Badge 
-                                  size="sm" 
                                   className={`text-xs ${ROLE_COLORS[assignment.role as keyof typeof ROLE_COLORS] || 'bg-gray-100 text-gray-800'}`}
                                 >
                                   {assignment.role}

@@ -63,7 +63,7 @@ export function useOptimizedProducts(options: UseOptimizedProductsOptions) {
       if (error) throw error
 
       if (data && data.length > 0) {
-        setProducts(data.map(item => ({
+        setProducts(data.map((item: any) => ({
           id: item.id,
           name: item.name,
           description: item.description,

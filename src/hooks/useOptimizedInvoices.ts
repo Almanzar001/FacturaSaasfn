@@ -64,7 +64,7 @@ export function useOptimizedInvoices(options: UseOptimizedInvoicesOptions) {
       if (error) throw error
 
       if (data && data.length > 0) {
-        setInvoices(data.map(item => ({
+        setInvoices(data.map((item: any) => ({
           id: item.id,
           invoice_number: item.invoice_number,
           client_name: item.client_name,

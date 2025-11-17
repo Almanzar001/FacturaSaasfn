@@ -75,7 +75,7 @@ export function useOptimizedInventory(options: UseOptimizedInventoryOptions) {
       if (error) throw error
 
       if (data && data.length > 0) {
-        setMovements(data.map(item => ({
+        setMovements(data.map((item: any) => ({
           id: item.id,
           movement_type: item.movement_type,
           quantity: item.quantity,

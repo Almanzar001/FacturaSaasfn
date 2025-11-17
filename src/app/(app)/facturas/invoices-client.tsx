@@ -16,6 +16,7 @@ interface Invoice {
   client_id: string
   client_name: string
   client_email: string
+  branch_id?: string | null
   subtotal: number
   discount_percentage?: number
   discount_amount?: number
@@ -711,6 +712,7 @@ export default function InvoicesComplete() {
       setEditingInvoice(invoice)
       setFormData({
         client_id: invoice.client_id,
+        branch_id: invoice.branch_id || '',
         issue_date: invoice.issue_date,
         due_date: invoice.due_date,
         notes: invoice.notes || '',
@@ -2181,7 +2183,8 @@ export default function InvoicesComplete() {
                         name: '',
                         description: '',
                         price: 0,
-                        category: ''
+                        category: '',
+                        is_inventory_tracked: false
                       })
                     }}
                     className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"

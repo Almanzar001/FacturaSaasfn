@@ -1,12 +1,9 @@
-import React, { lazy, Suspense, ComponentType } from 'react'
+import React, { Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
 
 interface LazyLoadProps {
   fallback?: React.ReactNode
   className?: string
-}
-
-interface LazyComponentProps extends LazyLoadProps {
   children: React.ReactNode
 }
 
@@ -20,24 +17,8 @@ const DefaultFallback = ({ className }: { className?: string }) => (
   </div>
 )
 
-// Higher-order component for lazy loading
-export function withLazyLoading<P extends object>(
-  Component: ComponentType<P>,
-  fallback?: React.ReactNode
-) {
-  const LazyComponent = React.forwardRef<any, P>((props, ref) => (
-    <Suspense fallback={fallback || <DefaultFallback />}>
-      <Component {...props} ref={ref} />
-    </Suspense>
-  ))
-
-  LazyComponent.displayName = `LazyLoaded(${Component.displayName || Component.name || 'Component'})`
-
-  return LazyComponent
-}
-
-// Wrapper component for lazy loading
-export function LazyLoad({ children, fallback, className }: LazyComponentProps) {
+// Simple wrapper component for lazy loading
+export function LazyLoad({ children, fallback, className }: LazyLoadProps) {
   return (
     <Suspense fallback={fallback || <DefaultFallback className={className} />}>
       {children}
@@ -45,41 +26,27 @@ export function LazyLoad({ children, fallback, className }: LazyComponentProps) 
   )
 }
 
-// Hook to create lazy components with custom fallback
-export function useLazyComponent<P extends object>(
-  componentImport: () => Promise<{ default: ComponentType<P> }>,
-  fallback?: React.ReactNode
-) {
-  const LazyComponent = lazy(componentImport)
-  
-  return React.forwardRef<any, P>((props, ref) => (
-    <LazyLoad fallback={fallback}>
-      <LazyComponent {...props} ref={ref} />
-    </LazyLoad>
-  ))
-}
-
 // Pre-built lazy components for common use cases
-export const LazyTable = ({ children, fallback }: LazyComponentProps) => (
+export const LazyTable = ({ children, fallback }: LazyLoadProps) => (
   <LazyLoad fallback={fallback || <DefaultFallback />}>
     {children}
   </LazyLoad>
 )
 
-export const LazyModal = ({ children, fallback }: LazyComponentProps) => (
+export const LazyModal = ({ children, fallback }: LazyLoadProps) => (
   <LazyLoad fallback={fallback || <DefaultFallback className="min-h-[200px]" />}>
     {children}
   </LazyLoad>
 )
 
-export const LazyChart = ({ children, fallback }: LazyComponentProps) => (
+export const LazyChart = ({ children, fallback }: LazyLoadProps) => (
   <LazyLoad fallback={fallback || <DefaultFallback className="min-h-[300px]" />}>
     {children}
   </LazyLoad>
 )
 
 // Intersection Observer based lazy loading for performance
-interface IntersectionLazyLoadProps extends LazyComponentProps {
+interface IntersectionLazyLoadProps extends LazyLoadProps {
   threshold?: number
   rootMargin?: string
   triggerOnce?: boolean

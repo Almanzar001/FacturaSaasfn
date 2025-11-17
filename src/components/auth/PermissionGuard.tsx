@@ -1,6 +1,6 @@
 import React from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
-import { AlertCircle, Lock } from 'lucide-react'
+import { AlertCircle, Lock, Package } from 'lucide-react'
 
 interface PermissionGuardProps {
   children: React.ReactNode
