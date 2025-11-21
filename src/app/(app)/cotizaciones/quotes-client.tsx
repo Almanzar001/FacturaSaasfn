@@ -515,40 +515,15 @@ export default function QuotesClient() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.total
+        total_price: item.total,
+        description: item.product_name
       }))
 
-      // First, let's verify what columns actually exist
-      console.log('About to insert quote items:', itemsToInsert)
-      
-      // Try different field combinations to see what works
-      const testInsert = itemsToInsert.map(item => ({
-        quote_id: item.quote_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price
-        // Omit total_price for now to see if that's the issue
-      }))
-      
-      console.log('Testing insert without total field:', testInsert)
-
-      const { data: insertResult, error: itemsError } = await supabase
+      const { error: itemsError } = await supabase
         .from('quote_items')
-        .insert(testInsert)
-        .select()
+        .insert(itemsToInsert)
 
-      console.log('Insert result:', insertResult)
-      console.log('Insert error:', itemsError)
-
-      if (itemsError) {
-        console.error('Detailed error analysis:', {
-          code: itemsError.code,
-          message: itemsError.message,
-          details: itemsError.details,
-          hint: itemsError.hint
-        })
-        throw itemsError
-      }
+      if (itemsError) throw itemsError
 
       closeModal()
       fetchQuotes(organizationId)
@@ -556,8 +531,6 @@ export default function QuotesClient() {
       // Refresh dashboard to update recent activity
       setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
-      console.error('Quote creation error:', error)
-      console.error('Error details:', JSON.stringify(error))
       alert('Error al guardar la cotización: ' + (error as any)?.message || 'Error desconocido')
     }
   }

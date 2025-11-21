@@ -524,6 +524,7 @@ export interface Database {
           quantity: number
           unit_price: number
           total_price: number
+          description: string
         }
         Insert: {
           id?: string
@@ -532,6 +533,7 @@ export interface Database {
           quantity: number
           unit_price: number
           total_price: number
+          description: string
         }
         Update: {
           id?: string
@@ -540,6 +542,7 @@ export interface Database {
           quantity?: number
           unit_price?: number
           total_price?: number
+          description?: string
         }
       }
       payments: {
