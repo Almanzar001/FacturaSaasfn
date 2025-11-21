@@ -523,7 +523,7 @@ export interface Database {
           product_id: string
           quantity: number
           unit_price: number
-          total: number
+          total_price: number
         }
         Insert: {
           id?: string
@@ -531,7 +531,7 @@ export interface Database {
           product_id: string
           quantity: number
           unit_price: number
-          total: number
+          total_price: number
         }
         Update: {
           id?: string
@@ -539,7 +539,7 @@ export interface Database {
           product_id?: string
           quantity?: number
           unit_price?: number
-          total?: number
+          total_price?: number
         }
       }
       payments: {

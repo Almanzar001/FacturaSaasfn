@@ -383,6 +383,15 @@ export default function QuotesClient() {
 
   const generateQuoteNumber = async (orgId: string, attempt: number = 0): Promise<string> => {
     try {
+      if (attempt >= 2) {
+        // Use timestamp-based unique number after 2 attempts
+        const timestamp = Date.now().toString().slice(-8)
+        const randomSuffix = Math.floor(Math.random() * 100).toString().padStart(2, '0')
+        const uniqueNumber = `COT-${timestamp}${randomSuffix}`
+        console.log(`Using timestamp-based unique number: ${uniqueNumber} (attempt ${attempt})`)
+        return uniqueNumber
+      }
+
       const { data, error } = await supabase
         .from('quotes')
         .select('quote_number')
@@ -405,7 +414,7 @@ export default function QuotesClient() {
       
       // Add progressive offset for retries to avoid collisions
       if (attempt > 0) {
-        nextNumber += (attempt * 5) + Math.floor(Math.random() * 10)
+        nextNumber += (attempt * 10) + Math.floor(Math.random() * 20)
       }
       
       const generatedNumber = `COT-${String(nextNumber).padStart(5, '0')}`
@@ -506,14 +515,40 @@ export default function QuotesClient() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total: item.total
+        total_price: item.total
       }))
 
-      const { error: itemsError } = await supabase
-        .from('quote_items')
-        .insert(itemsToInsert)
+      // First, let's verify what columns actually exist
+      console.log('About to insert quote items:', itemsToInsert)
+      
+      // Try different field combinations to see what works
+      const testInsert = itemsToInsert.map(item => ({
+        quote_id: item.quote_id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+        // Omit total_price for now to see if that's the issue
+      }))
+      
+      console.log('Testing insert without total field:', testInsert)
 
-      if (itemsError) throw itemsError
+      const { data: insertResult, error: itemsError } = await supabase
+        .from('quote_items')
+        .insert(testInsert)
+        .select()
+
+      console.log('Insert result:', insertResult)
+      console.log('Insert error:', itemsError)
+
+      if (itemsError) {
+        console.error('Detailed error analysis:', {
+          code: itemsError.code,
+          message: itemsError.message,
+          details: itemsError.details,
+          hint: itemsError.hint
+        })
+        throw itemsError
+      }
 
       closeModal()
       fetchQuotes(organizationId)
