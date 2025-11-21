@@ -403,17 +403,22 @@ export default function QuotesClient() {
         nextNumber = lastNumber + 1
       }
       
-      // Add random offset to reduce collisions
+      // Add progressive offset for retries to avoid collisions
       if (attempt > 0) {
-        nextNumber += Math.floor(Math.random() * 10) + attempt
+        nextNumber += (attempt * 5) + Math.floor(Math.random() * 10)
       }
       
-      return `COT-${String(nextNumber).padStart(5, '0')}`
+      const generatedNumber = `COT-${String(nextNumber).padStart(5, '0')}`
+      console.log(`Generated quote number: ${generatedNumber} (attempt ${attempt})`)
+      
+      return generatedNumber
 
     } catch (err) {
-      // Fallback to a random number to avoid blocking the user.
-      const randomSuffix = Math.floor(Math.random() * 100000).toString().padStart(5, '0')
-      return `COT-R${randomSuffix}`
+      console.warn('Fallback to random quote number due to error:', err)
+      // Fallback to a random number with timestamp to ensure uniqueness
+      const timestamp = Date.now().toString().slice(-5)
+      const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      return `COT-R${timestamp}${randomSuffix}`
     }
   }
 
@@ -501,8 +506,7 @@ export default function QuotesClient() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.total,
-        description: item.product_name,
+        total: item.total
       }))
 
       const { error: itemsError } = await supabase
@@ -517,6 +521,8 @@ export default function QuotesClient() {
       // Refresh dashboard to update recent activity
       setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
+      console.error('Quote creation error:', error)
+      console.error('Error details:', JSON.stringify(error))
       alert('Error al guardar la cotización: ' + (error as any)?.message || 'Error desconocido')
     }
   }
