@@ -396,45 +396,57 @@ export interface Database {
       quotes: {
         Row: {
           id: string
-          quote_number: string
-          client_id: string
           organization_id: string
-          subtotal: number
-          tax: number
-          total: number
-          status: string
+          client_id: string
+          quote_number: string
+          issue_date: string
           valid_until: string
-          branch_id: string | null
+          subtotal: number
+          tax_amount: number
+          total: number
+          notes: string | null
+          terms: string | null
+          status: string | null
           created_at: string
           updated_at: string
+          tax: number
+          branch_id: string | null
         }
         Insert: {
           id?: string
-          quote_number: string
-          client_id: string
           organization_id: string
-          subtotal: number
-          tax: number
-          total: number
-          status?: string
+          client_id: string
+          quote_number: string
+          issue_date: string
           valid_until: string
-          branch_id?: string | null
+          subtotal: number
+          tax_amount: number
+          total: number
+          notes?: string | null
+          terms?: string | null
+          status?: string | null
           created_at?: string
           updated_at?: string
+          tax?: number
+          branch_id?: string | null
         }
         Update: {
           id?: string
-          quote_number?: string
-          client_id?: string
           organization_id?: string
-          subtotal?: number
-          tax?: number
-          total?: number
-          status?: string
+          client_id?: string
+          quote_number?: string
+          issue_date?: string
           valid_until?: string
-          branch_id?: string | null
+          subtotal?: number
+          tax_amount?: number
+          total?: number
+          notes?: string | null
+          terms?: string | null
+          status?: string | null
           created_at?: string
           updated_at?: string
+          tax?: number
+          branch_id?: string | null
         }
       }
       expenses: {
@@ -482,7 +494,6 @@ export interface Database {
           product_id: string
           quantity: number
           unit_price: number
-          total: number
           total_price: number | null
           description: string | null
         }
@@ -492,7 +503,6 @@ export interface Database {
           product_id: string
           quantity: number
           unit_price: number
-          total: number
           total_price?: number | null
           description?: string | null
         }
@@ -502,7 +512,6 @@ export interface Database {
           product_id?: string
           quantity?: number
           unit_price?: number
-          total?: number
           total_price?: number | null
           description?: string | null
         }

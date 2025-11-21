@@ -525,6 +525,11 @@ export default function InvoicesComplete() {
     return { subtotal, discountAmount, subtotalAfterDiscount, tax, total }
   }
 
+
+
+
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -613,15 +618,19 @@ export default function InvoicesComplete() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.total, // Use total_price instead of total
-        description: item.product_name // Add description field using product name
+        total_price: item.total,
+        description: item.product_name
       }))
+
 
       const { error: itemsError } = await supabase
         .from('invoice_items')
         .insert(itemsToInsert)
 
-      if (itemsError) throw itemsError
+      if (itemsError) {
+        throw itemsError
+      }
+      
 
       // Handle initial payment
       if (formData.initial_payment > 0) {

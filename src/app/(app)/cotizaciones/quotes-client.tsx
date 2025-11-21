@@ -381,7 +381,7 @@ export default function QuotesClient() {
     return { subtotal, tax, total }
   }
 
-  const generateQuoteNumber = async (orgId: string) => {
+  const generateQuoteNumber = async (orgId: string, attempt: number = 0): Promise<string> => {
     try {
       const { data, error } = await supabase
         .from('quotes')
@@ -396,13 +396,17 @@ export default function QuotesClient() {
         throw error
       }
 
-      if (!data) {
-        return 'COT-00001'
+      let nextNumber = 1
+      if (data) {
+        const lastNumberStr = data.quote_number.split('-').pop() || '0'
+        const lastNumber = parseInt(lastNumberStr, 10)
+        nextNumber = lastNumber + 1
       }
-
-      const lastNumberStr = data.quote_number.split('-').pop() || '0'
-      const lastNumber = parseInt(lastNumberStr, 10)
-      const nextNumber = lastNumber + 1
+      
+      // Add random offset to reduce collisions
+      if (attempt > 0) {
+        nextNumber += Math.floor(Math.random() * 10) + attempt
+      }
       
       return `COT-${String(nextNumber).padStart(5, '0')}`
 
@@ -434,8 +438,10 @@ export default function QuotesClient() {
         issue_date: formData.issue_date,
         valid_until: formData.valid_until,
         notes: formData.notes,
+        terms: null,
         subtotal,
         tax_amount: tax,
+        tax: tax,
         total,
         organization_id: organizationId
       }
@@ -456,15 +462,38 @@ export default function QuotesClient() {
           .delete()
           .eq('quote_id', quoteId)
       } else {
-        const quote_number = await generateQuoteNumber(organizationId)
-        const { data, error } = await supabase
-          .from('quotes')
-          .insert({ ...quoteData, quote_number, status: 'draft' })
-          .select()
-          .single()
+        let attempts = 0
+        const maxAttempts = 3
+        let insertSuccess = false
+        
+        while (!insertSuccess && attempts < maxAttempts) {
+          try {
+            const quote_number = await generateQuoteNumber(organizationId, attempts)
+            
+            const { data, error } = await supabase
+              .from('quotes')
+              .insert({ ...quoteData, quote_number, status: 'draft' })
+              .select()
+              .single()
 
-        if (error) throw error
-        quoteId = data.id
+            if (error) {
+              // Check if it's a duplicate quote_number error
+              if (error.code === '23505' && error.message?.includes('quotes_organization_id_quote_number_key')) {
+                attempts++
+                continue
+              }
+              throw error
+            }
+            
+            quoteId = data.id
+            insertSuccess = true
+          } catch (err) {
+            if (attempts === maxAttempts - 1) {
+              throw err
+            }
+            attempts++
+          }
+        }
       }
 
       const itemsToInsert = quoteItems.map(item => ({
@@ -488,7 +517,7 @@ export default function QuotesClient() {
       // Refresh dashboard to update recent activity
       setTimeout(() => refreshDashboard(), 500)
     } catch (error) {
-      alert('Error al guardar la cotización')
+      alert('Error al guardar la cotización: ' + (error as any)?.message || 'Error desconocido')
     }
   }
 
