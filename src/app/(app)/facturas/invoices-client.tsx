@@ -615,6 +615,7 @@ export default function InvoicesComplete() {
       // Insert invoice items
       const itemsToInsert = invoiceItems.map(item => ({
         invoice_id: invoiceId,
+        organization_id: organizationId,
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
