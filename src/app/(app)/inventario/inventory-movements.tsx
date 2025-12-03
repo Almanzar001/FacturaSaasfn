@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Plus, Package, ShoppingCart, RotateCcw, ArrowUpDown, Search, Calendar, Filter, RefreshCw } from 'lucide-react'
+import { Loader2, Plus, Package, ShoppingCart, RotateCcw, ArrowUpDown, Search, Calendar, Filter, RefreshCw, Settings } from 'lucide-react'
+import InventoryAuditDialog from '@/components/inventory-audit-dialog'
 
 interface Product {
   id: string
@@ -107,6 +108,10 @@ export default function InventoryMovements() {
     quantity: 0,
     notes: ''
   })
+  
+  // Estado para auditoría
+  const [showAuditDialog, setShowAuditDialog] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string>('')
   const [movementForm, setMovementForm] = useState({
     product_id: '',
     branch_id: '',
@@ -173,6 +178,8 @@ export default function InventoryMovements() {
         .single()
 
       if (!profile?.organization_id) throw new Error('No hay organización asociada')
+      
+      setOrganizationId(profile.organization_id)
 
       // Cargar productos con inventario habilitado
       const { data: productsData, error: productsError } = await supabase
@@ -490,40 +497,38 @@ export default function InventoryMovements() {
       }
       console.log('📤 Parámetros para RPC:', params)
 
-      // Llamar función de registro de compra
-      console.log('🔄 Llamando register_purchase...')
-      const { data, error } = await supabase.rpc('register_purchase', params)
-
-      console.log('📥 Respuesta RPC:', { data, error })
-
-      if (error) {
-        console.log('❌ Error en RPC:', error)
-        throw error
+      // Process each purchase item
+      let movementsCreated = 0
+      
+      for (const item of purchaseItems) {
+        await registerInventoryMovement(
+          item.product_id,
+          selectedBranch,
+          'entrada',
+          item.quantity,
+          'compra',
+          null,
+          item.cost_price,
+          purchaseNotes || null
+        )
+        movementsCreated++
       }
 
-      console.log('📊 Data recibida:', data)
-
-      // La función ahora retorna un objeto JSONB directamente
-      if (data?.success) {
-        console.log('✅ Compra exitosa:', data)
-        toast({
-          title: "Éxito",
-          description: `Compra registrada: ${data.movements_created} movimientos creados`,
-        })
-        
-        // Limpiar formulario
-        setPurchaseItems([])
-        setSelectedBranch('')
-        setPurchaseNotes('')
-        setShowPurchaseDialog(false)
-        
-        // Recargar movimientos y stock
-        loadMovements()
-        loadCurrentStock()
-      } else {
-        console.log('❌ Compra fallida:', data)
-        throw new Error(data?.message || 'Error registrando compra')
-      }
+      console.log('✅ Compra exitosa')
+      toast({
+        title: "Éxito",
+        description: `Compra registrada: ${movementsCreated} movimientos creados`,
+      })
+      
+      // Limpiar formulario
+      setPurchaseItems([])
+      setSelectedBranch('')
+      setPurchaseNotes('')
+      setShowPurchaseDialog(false)
+      
+      // Recargar movimientos y stock
+      loadMovements()
+      loadCurrentStock()
 
     } catch (error: any) {
       console.log('🔥 Error capturado:', error)
@@ -538,6 +543,93 @@ export default function InventoryMovements() {
     }
   }
 
+  const registerInventoryMovement = async (
+    productId: string,
+    branchId: string,
+    movementType: string,
+    quantity: number,
+    referenceType: string,
+    referenceId: string | null,
+    costPrice: number | null,
+    notes: string | null
+  ) => {
+    // Get current stock
+    const { data: currentStock, error: stockError } = await supabase
+      .from('inventory_stock')
+      .select('quantity, id')
+      .eq('product_id', productId)
+      .eq('branch_id', branchId)
+      .single()
+
+    let previousQuantity = 0
+    let newQuantity = 0
+    let stockId = null
+
+    if (currentStock) {
+      previousQuantity = currentStock.quantity
+      stockId = currentStock.id
+    }
+
+    // Calculate new quantity based on movement type
+    let quantityChange: number
+    if (['entrada', 'transferencia_entrada'].includes(movementType)) {
+      quantityChange = Math.abs(quantity) // Always positive for entries
+    } else if (['salida', 'transferencia_salida'].includes(movementType)) {
+      quantityChange = -Math.abs(quantity) // Always negative for exits
+    } else {
+      // For 'ajuste' - use the quantity as provided (can be positive or negative)
+      quantityChange = quantity
+    }
+
+    newQuantity = previousQuantity + quantityChange
+    
+    console.log(`Movement calculation: ${previousQuantity} + (${quantityChange}) = ${newQuantity}`)
+
+    // Update or create stock record
+    if (stockId) {
+      const { error: updateError } = await supabase
+        .from('inventory_stock')
+        .update({ 
+          quantity: newQuantity,
+          last_movement_date: new Date().toISOString()
+        })
+        .eq('id', stockId)
+
+      if (updateError) throw updateError
+    } else {
+      const { error: createError } = await supabase
+        .from('inventory_stock')
+        .insert({
+          product_id: productId,
+          branch_id: branchId,
+          quantity: newQuantity,
+          reserved_quantity: 0,
+          last_movement_date: new Date().toISOString()
+        })
+
+      if (createError) throw createError
+    }
+
+    // Record the movement
+    const { error: movementError } = await supabase
+      .from('inventory_movements')
+      .insert({
+        product_id: productId,
+        branch_id: branchId,
+        movement_type: movementType,
+        quantity: quantityChange, // Store the signed change
+        previous_quantity: previousQuantity,
+        new_quantity: newQuantity,
+        reference_type: referenceType,
+        reference_id: referenceId,
+        cost_price: costPrice,
+        notes: notes,
+        movement_date: new Date().toISOString()
+      })
+
+    if (movementError) throw movementError
+  }
+
   const registerMovement = async () => {
     if (!movementForm.product_id || !movementForm.branch_id || !movementForm.movement_type || movementForm.quantity === 0) {
       toast({
@@ -550,18 +642,16 @@ export default function InventoryMovements() {
 
     setLoading(true)
     try {
-      const { error } = await supabase.rpc('register_inventory_movement', {
-        p_product_id: movementForm.product_id,
-        p_branch_id: movementForm.branch_id,
-        p_movement_type: movementForm.movement_type,
-        p_quantity: movementForm.movement_type === 'salida' ? -Math.abs(movementForm.quantity) : Math.abs(movementForm.quantity),
-        p_reference_type: 'ajuste',
-        p_reference_id: null,
-        p_cost_price: movementForm.cost_price,
-        p_notes: movementForm.notes || null
-      })
-
-      if (error) throw error
+      await registerInventoryMovement(
+        movementForm.product_id,
+        movementForm.branch_id,
+        movementForm.movement_type,
+        movementForm.quantity,
+        'ajuste',
+        null,
+        movementForm.cost_price,
+        movementForm.notes || null
+      )
 
       toast({
         title: "Éxito",
@@ -710,6 +800,10 @@ export default function InventoryMovements() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAuditDialog(true)} className="gap-2">
+            <Settings className="h-4 w-4" />
+            Auditoría
+          </Button>
           <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -1461,6 +1555,17 @@ export default function InventoryMovements() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Diálogo de Auditoría */}
+      <InventoryAuditDialog
+        open={showAuditDialog}
+        onClose={() => setShowAuditDialog(false)}
+        organizationId={organizationId || ''}
+        onAuditComplete={() => {
+          loadMovements()
+          loadCurrentStock()
+        }}
+      />
     </div>
   )
 }

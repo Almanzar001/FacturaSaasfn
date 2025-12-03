@@ -623,14 +623,22 @@ export default function InvoicesComplete() {
         description: item.product_name
       }))
 
+      console.log('📦 Items to insert:', itemsToInsert)
+      console.log('🏢 Organization ID:', organizationId)
+      console.log('📄 Invoice ID:', invoiceId)
 
-      const { error: itemsError } = await supabase
+      const { data: insertData, error: itemsError } = await supabase
         .from('invoice_items')
         .insert(itemsToInsert)
+        .select()
 
       if (itemsError) {
+        console.error('❌ Error inserting items:', itemsError)
+        console.error('📋 Error details:', JSON.stringify(itemsError, null, 2))
         throw itemsError
       }
+      
+      console.log('✅ Items inserted successfully:', insertData)
       
 
       // Handle initial payment
