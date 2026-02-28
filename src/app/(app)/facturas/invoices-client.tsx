@@ -194,7 +194,7 @@ export default function InvoicesComplete() {
     if (formData.document_type_id && documentTypes.length > 0) {
       const selectedType = documentTypes.find(type => type.id === formData.document_type_id)
       if (selectedType) {
-        const nextNumber = String(selectedType.sequence_next_value).padStart(10, '0')
+        const nextNumber = String(selectedType.sequence_next_value).padStart(8, '0')
         setNextInvoiceNumberPreview(`${selectedType.prefix}${nextNumber}`)
       }
     } else {
