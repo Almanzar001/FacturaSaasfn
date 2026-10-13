@@ -605,28 +605,10 @@ export default function InvoicesComplete() {
       let invoiceId: string
 
       if (editingInvoice) {
-        // Al editar, el balance debe descontar los pagos ya registrados
-        const { data: existingPayments, error: paymentsError } = await supabase
-          .from('payments')
-          .select('amount')
-          .eq('invoice_id', editingInvoice.id)
-
-        if (paymentsError) throw paymentsError
-
-        const totalPaid = (existingPayments || []).reduce((sum: number, payment: { amount: number }) => sum + Number(payment.amount), 0)
-        const balance = Math.max(total - totalPaid, 0)
-
-        let status = editingInvoice.status
-        if (totalPaid > 0) {
-          status = balance <= 0 ? 'paid' : 'partially_paid'
-        } else if (status === 'paid' || status === 'partially_paid') {
-          status = 'draft'
-        }
-
         // Update existing invoice
         const { error } = await supabase
           .from('invoices')
-          .update({ ...invoiceData, balance, status })
+          .update(invoiceData)
           .eq('id', editingInvoice.id)
 
         if (error) throw error
