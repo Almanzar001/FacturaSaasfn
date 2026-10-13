@@ -98,11 +98,40 @@ interface Branch {
   is_active: boolean
 }
 
+type PaymentFilter = 'all' | 'debt' | 'paid' | 'partial' | 'overdue'
+
+const PAYMENT_FILTERS: { value: PaymentFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'debt', label: 'Con deuda' },
+  { value: 'paid', label: 'Pagadas' },
+  { value: 'partial', label: 'Parcialmente pagadas' },
+  { value: 'overdue', label: 'Vencidas' }
+]
+
+// Los filtros se basan en el balance, no en el status, que puede estar desactualizado
+const matchesPaymentFilter = (invoice: Invoice, filter: PaymentFilter) => {
+  const balance = invoice.balance ?? invoice.total
+
+  switch (filter) {
+    case 'debt':
+      return balance > 0
+    case 'paid':
+      return balance <= 0
+    case 'partial':
+      return balance > 0 && balance < invoice.total
+    case 'overdue':
+      return balance > 0 && (invoice.status === 'overdue' || (!!invoice.due_date && invoice.due_date.slice(0, 10) < getTodayDateString()))
+    default:
+      return true
+  }
+}
+
 export default function InvoicesComplete() {
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
   const [clients, setClients] = useState<Client[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([])
@@ -271,12 +300,14 @@ export default function InvoicesComplete() {
 
   // Función para filtrar facturas
   const filterInvoices = (query: string) => {
+    const byPayment = invoices.filter(invoice => matchesPaymentFilter(invoice, paymentFilter))
+
     if (!query.trim()) {
-      setFilteredInvoices(invoices)
+      setFilteredInvoices(byPayment)
       return
     }
 
-    const filtered = invoices.filter(invoice =>
+    const filtered = byPayment.filter(invoice =>
       invoice.invoice_number.toLowerCase().includes(query.toLowerCase()) ||
       invoice.client_name.toLowerCase().includes(query.toLowerCase()) ||
       invoice.client_email.toLowerCase().includes(query.toLowerCase()) ||
@@ -290,7 +321,7 @@ export default function InvoicesComplete() {
   // Effect para manejar la búsqueda
   useEffect(() => {
     filterInvoices(searchQuery)
-  }, [searchQuery, invoices])
+  }, [searchQuery, paymentFilter, invoices])
 
   // Función para manejar la búsqueda
   const handleSearch = (query: string) => {
@@ -1277,6 +1308,24 @@ export default function InvoicesComplete() {
           onSearch={handleSearch}
           className="max-w-md"
         />
+        <div className="flex flex-wrap gap-2 mt-4">
+          {PAYMENT_FILTERS.map(filter => (
+            <button
+              key={filter.value}
+              onClick={() => setPaymentFilter(filter.value)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                paymentFilter === filter.value
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {filter.label}
+              <span className={`ml-2 text-xs ${paymentFilter === filter.value ? 'text-blue-100' : 'text-gray-500'}`}>
+                {invoices.filter(invoice => matchesPaymentFilter(invoice, filter.value)).length}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Invoices Table */}
@@ -1293,9 +1342,9 @@ export default function InvoicesComplete() {
               </svg>
             </div>
             <p className="text-gray-500 mb-4">
-              {searchQuery ? 'No se encontraron facturas que coincidan con la búsqueda' : 'No hay facturas registradas'}
+              {searchQuery || paymentFilter !== 'all' ? 'No se encontraron facturas que coincidan con la búsqueda o el filtro' : 'No hay facturas registradas'}
             </p>
-            {!searchQuery && (
+            {!searchQuery && paymentFilter === 'all' && (
               <button
                 onClick={() => openModal()}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
